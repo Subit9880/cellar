@@ -1,0 +1,137 @@
+---
+title: "Finding code"
+description: "Search modules by name, by the code inside them, or by what they export."
+icon: "magnifying-glass"
+keywords: ["search", "grep", "module"]
+---
+
+A version contains around 187,000 modules. Searching is how you get from a hunch to a
+file path.
+
+## Search
+
+```bash
+cellar module search --name 'Passkey' --filter protocol
+```
+
+```
+12 module(s) matched of 12 considered
+
+WASmaxMdGetPasskeyRequestOptionsRPC   /Users/you/.cellar/bundles/whatsapp-1044822804/modules/WASmaxMdGetPasskeyRequestOptionsRPC.js
+WASmaxMdSetPasskeyPrologueRPC         /Users/you/.cellar/bundles/whatsapp-1044822804/modules/WASmaxMdSetPasskeyPrologueRPC.js
+…
+```
+
+Three things you can match on, and they combine:
+
+| Flag | Matches against |
+| --- | --- |
+| `--name` | The module name |
+| `--source` | The code inside the module |
+| `--exports` | The names the module exports |
+
+```bash
+cellar module search --name '^WAWeb' --source 'addonType' -C 2
+cellar module search --exports 'sendStanza'
+```
+
+<Tip>
+  Combining `--name` with `--source` is much faster than `--source` alone. The name
+  pattern is applied to the index in memory, so only the surviving files are ever
+  opened. That is the difference between reading forty files and a hundred and
+  eighty thousand.
+</Tip>
+
+### grep
+
+`cellar grep` is shorthand for a source search.
+
+```bash
+cellar grep 'disappearing_mode' --filter protocol -C 1
+```
+
+```
+15 module(s) matched of 4715 considered (showing 3)
+
+WASmaxInAccountSyncNotificationDisappearingModeMixin  /Users/you/.cellar/…/WASmaxInAccountSyncNotificationDisappearingModeMixin.js
+        │ 	function e(e) {
+      3 │ 		var t = o("WASmaxParseUtils").assertTag(e, "disappearing_mode");
+        │ 		if (!t.success) return t;
+```
+
+Because the unpacked modules are ordinary files, your own tools work too:
+
+```bash
+grep -rl 'disappearing_mode' ~/.cellar/bundles/whatsapp-1044822804/modules/
+```
+
+## Reading a module
+
+```bash
+cellar module show WASmaxOutMdGetPasskeyRequestOptionsRequest
+```
+
+```
+WASmaxOutMdGetPasskeyRequestOptionsRequest
+  path:      /Users/you/.cellar/bundles/whatsapp-1044822804/modules/WASmaxOutMdGetPasskeyRequestOptionsRequest.js
+  bundle:    whatsapp-1044822804
+  sha256:    c1a007c396ec856d5e84a44c174a28d51beb693e2e07cdd3f9fe508ef5c91a44
+  size:      390 B raw / 445 B stored
+  deps:      WASmaxJsx, WASmaxOutMdBaseIQGetRequestMixin, WAWap
+  dependents: WASmaxMdGetPasskeyRequestOptionsRPC
+  exports:   (none)
+
+--- source ---
+     1 │ __d("WASmaxOutMdGetPasskeyRequestOptionsRequest", [
+     …
+```
+
+Useful flags:
+
+```bash
+cellar module show WAWebSendMsgStanza --start 40 --lines 20   # a slice
+cellar module show WAWebSendMsgStanza --path-only              # just the path
+cellar module show WAWebSendMsgStanza --json                   # metadata as JSON
+```
+
+If the name is wrong, the error lists near matches instead of just failing.
+
+## Export formats
+
+Both commands take `--json`.
+
+```bash
+cellar module show WASmaxOutMdGetPasskeyRequestOptionsRequest --json
+```
+
+```json
+{
+  "bundle": "whatsapp-1044822804",
+  "module": {
+    "name": "WASmaxOutMdGetPasskeyRequestOptionsRequest",
+    "file": "modules/WASmaxOutMdGetPasskeyRequestOptionsRequest.js",
+    "deps": ["WASmaxJsx", "WASmaxOutMdBaseIQGetRequestMixin", "WAWap"],
+    "dependents": ["WASmaxMdGetPasskeyRequestOptionsRPC"],
+    "exports": [],
+    "rawSha256": "c1a007c396ec856d5e84a44c174a28d51beb693e2e07cdd3f9fe508ef5c91a44",
+    "rawLen": 390,
+    "storedLen": 445,
+    "chunk": "0cbae07f3ac0860a2f76ff42ca2026a94ff8f41c82e665a5f407cf0d2a084d92.js",
+    "form": "pretty"
+  },
+  "path": "/Users/you/.cellar/bundles/whatsapp-1044822804/modules/WASmaxOutMdGetPasskeyRequestOptionsRequest.js"
+}
+```
+
+Chain it:
+
+```bash
+cellar module search --name '^WAWebNewsletter' --json | jq -r '.hits[].path'
+```
+
+## Reading results carefully
+
+Search results report `matched` (the true count) separately from the hits returned,
+and set `truncated: true` when the list was cut. A short list is never silently a
+complete one. Modules that could not be read are listed under `unreadable` rather
+than dropped.

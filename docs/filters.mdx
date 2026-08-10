@@ -1,0 +1,134 @@
+---
+title: "Filters"
+description: "Cut 187,000 modules down to the ones you care about."
+icon: "filter"
+keywords: ["filter", "protocol", "schemas", "wam"]
+---
+
+A release contains around 187,000 modules. Roughly 11% of them have anything to do
+with WhatsApp's protocol. The rest are buttons, icons, analytics, and code belonging
+to Facebook and Instagram, which share the same bundle.
+
+Without a filter, comparing two releases produces tens of thousands of entries.
+Filters are what make results readable.
+
+## Built-in filters
+
+| Filter | What it keeps | Good for |
+| --- | --- | --- |
+| `default` | The protocol surface, about 11% | Comparing releases |
+| `all` | Everything | Checking whether a filter hid your answer |
+| `protocol` | Only confirmed protocol modules | Short, high-signal results |
+| `schemas` | `.pb`, `.proto` and `.graphql` | New data fields and server queries |
+| `wam` | Analytics events and enums | The earliest sign of an unreleased feature |
+
+```bash
+cellar filter list
+```
+
+The difference is not subtle. Searching for `Passkey` without a filter returns 193
+modules, mostly Facebook's business login screens. With `--filter protocol` it returns
+12, which are the entire feature.
+
+<Warning>
+  `default` deliberately skips `.pb` and `.graphql` files. They are generated, and a
+  text comparison of them is noise. If you are hunting for a new protobuf field, use
+  `--filter schemas`, or you will conclude that nothing changed.
+</Warning>
+
+## Check before you trust
+
+```bash
+cellar filter test default --bundle latest
+```
+
+```
+filter `default` on whatsapp-1044822804: keeps 18761 of 172040 modules (10.9%)
+  dropped by dependsOnExcluded: 25095
+  dropped by exclude: 58397
+  dropped by hardExclude: 69787
+
+kept, for example:
+  WAWebSendMsgStanza
+  WASmaxInIqCallReceiptResponse
+  …
+
+dropped, for example:
+  AACDestinationGuidanceCardContainer.react   {"pattern":"\\.react$","reason":"hardExclude"}
+  AAAMediaPickerVisibilityAction              {"module":"Laminar","reason":"dependsOn"}
+```
+
+Every dropped module reports why it was dropped, so an unexpectedly empty result is
+explainable rather than mysterious.
+
+## Making your own
+
+Built-in filters are read only. Copy one and edit the copy.
+
+```bash
+cellar filter fork protocol newsletters
+cellar filter show newsletters > newsletters.json
+# edit, then:
+cellar filter set newsletters --from newsletters.json
+```
+
+A filter is JSON, and a partial document is treated as an edit, so you only send the
+fields you want to change.
+
+```json
+{
+  "description": "Newsletter and channel surface only",
+  "include": ["^WAWebNewsletter", "Newsletter"],
+  "defaultVerdict": "drop"
+}
+```
+
+```bash
+echo '{"include":["Newsletter"],"defaultVerdict":"drop"}' | cellar filter set mine --from -
+```
+
+Deleting a filter that shadows a built-in restores the built-in.
+
+```bash
+cellar filter rm newsletters
+```
+
+## How matching works
+
+Four lists of regular expressions, checked in order. The first match wins.
+
+<Steps>
+  <Step title="hardExclude">
+    Dropped no matter what, even if the include list also matches. This exists for
+    file types handled better by other means, like `.pb` schemas.
+  </Step>
+  <Step title="include">
+    Kept, overriding the exclude list. `WAWebSendMessageAction` matches the generic
+    "ends in Action" exclusion, but it is exactly what you want, so the include list
+    rescues it.
+  </Step>
+  <Step title="exclude">
+    Dropped.
+  </Step>
+  <Step title="defaultVerdict">
+    What happens to anything no list matched. `keep` makes a deny list, which is what
+    `default` is. `drop` makes an allow list, which is what `protocol` is.
+  </Step>
+</Steps>
+
+With `excludeDependentsOfExcluded`, anything that depends on a dropped module is also
+dropped, following the chain as far as it goes. Modules matched by `include` are
+exempt, since you asked for them explicitly.
+
+Two more lists tune the comparison rather than the selection:
+
+- `noiseDeps` lists dependencies whose coming and going says nothing, so they are left
+  out of reported dependency changes.
+- `noiseCode` lists patterns for compiler output, so a module whose entire change is
+  build noise gets counted as noise instead of reported.
+
+<Note>
+  The `default` filter's rules come from ProtoCocktail's `wa-diff-analyzer`, built up
+  by hand against real bundles over a long period. It encodes a lot of accumulated
+  knowledge about which module name means what.
+</Note>

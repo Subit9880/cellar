@@ -39,155 +39,22 @@ cd cellar
 cargo install --path crates/cellar
 ```
 
-## Uso
+## Documentação
 
-### Gerenciando bundles
+A documentação completa, incluindo um exemplo real que revela um recurso não anunciado
+em quatro comandos, está em **[cellar.mintlify.site](https://cellar.mintlify.site/pt-BR)**.
 
-Indexe a versão atual do WhatsApp Web. Isso baixa algumas centenas de megabytes e
-leva alguns minutos.
+| Página | O que cobre |
+| --- | --- |
+| [Assistentes de IA](https://cellar.mintlify.site/pt-BR/agents) | Configuração MCP para Claude Code e Codex, e as dezesseis ferramentas |
+| [Um exemplo real](https://cellar.mintlify.site/pt-BR/walkthrough) | Achando vínculo por passkey antes do lançamento |
+| [Gerenciando versões](https://cellar.mintlify.site/pt-BR/bundles) | Baixar, importar, inspecionar e remover releases |
+| [Encontrando código](https://cellar.mintlify.site/pt-BR/search) | Busca por nome, código ou símbolo exportado |
+| [Comparando releases](https://cellar.mintlify.site/pt-BR/diff) | Diffs em texto, JSON, NDJSON ou Markdown |
+| [Grafos](https://cellar.mintlify.site/pt-BR/graph) | Grafos de dependência em Mermaid, Graphviz ou JSON |
+| [Filtros](https://cellar.mintlify.site/pt-BR/filters) | Reduzindo 187.000 módulos ao que importa |
 
-```bash
-cellar bundle add --rev latest
-cellar bundle add --rev 1030882912
-```
-
-Os bundles ficam em `~/.cellar` por padrão. Use `CELLAR_HOME` para mudar isso.
-
-```bash
-cellar bundle list
-cellar bundle info latest
-cellar bundle rm whatsapp-1030882912 --yes
-```
-
-Você também pode indexar um arquivo que já tenha, seja um `.zip` ou um diretório com
-os chunks já extraídos.
-
-```bash
-cellar bundle import --rev 1030882912 --from ./whatsapp-1030882912
-```
-
-O comando `cellar bundle info` mostra o diagnóstico da extração. Confira antes de
-confiar em um resultado estranho. Um `chunkParseFailures` diferente de zero significa
-que faltam módulos no índice, e não que faltam no WhatsApp.
-
-### Buscando módulos
-
-```bash
-cellar module search --name '^WAWeb' --source 'addonType' -C 2
-cellar grep 'disappearing_mode' --filter protocol
-cellar module show WAWebSendMsgStanza
-cellar module show WAWebSendMsgStanza --path-only
-```
-
-Sempre que possível, restrinja com `--name`. O padrão de nome é aplicado primeiro ao
-índice em memória, então só os arquivos que sobram são abertos.
-
-### Comparando versões
-
-```bash
-cellar diff --no-hunks
-cellar diff whatsapp-1030882912 whatsapp-1044822804 --format json
-```
-
-Sem argumentos, o `diff` compara as duas versões mais recentes já armazenadas. Comece
-com `--no-hunks` para ter uma visão geral e depois repita para os módulos que valem a
-leitura.
-
-Mudanças em que todas as linhas alteradas são saída do transpilador são contadas como
-`noiseOnly` no resumo e ficam fora da lista. Use `--include-noise` para vê-las.
-
-### Grafos de dependências
-
-```bash
-cellar graph WAWebSendMsgStanza --direction dependents --depth 2
-cellar graph --match '^WAWebNewsletter' --direction deps --format mermaid
-```
-
-O código minificado referencia dependências por posição (`d[3]`), nunca por nome. Os
-arrays de dependências são o único registro de quem usa o quê, e o `cellar` os
-inverte no momento da indexação. O grep não responde a essa pergunta.
-
-## Filtros
-
-Um bundle tem cerca de 170.000 módulos. A superfície de protocolo é aproximadamente
-11% disso. O resto são componentes React, analytics e código dos outros produtos da
-Meta que dividem o mesmo bundle. Sem um filtro, comparar duas versões gera dezenas de
-milhares de entradas.
-
-| Filtro | O que mantém | Serve para |
-| --- | --- | --- |
-| `default` | Superfície de protocolo (~11%) | Comparar releases |
-| `all` | Tudo | Verificar se o filtro escondeu sua resposta |
-| `protocol` | Só módulos de protocolo confirmados | Resultados curtos e diretos |
-| `schemas` | `.pb`, `.proto` e `.graphql` | Novos campos protobuf e novas queries |
-| `wam` | Eventos e enums de analytics | Sinais iniciais de recursos não lançados |
-
-O filtro `default` exclui de forma definitiva os módulos `.pb` e `.graphql`, porque
-são artefatos gerados que um diff de texto reporta mal. Use `--filter schemas` quando
-estiver procurando um campo protobuf novo.
-
-Inspecione um filtro antes de confiar nele e faça um fork se precisar ajustar.
-
-```bash
-cellar filter list
-cellar filter test default --bundle latest
-cellar filter fork default meu
-cellar filter set meu --from ./meu.json
-```
-
-A precedência é `hardExclude`, depois `include`, depois `exclude` e por fim
-`defaultVerdict`. Com `excludeDependentsOfExcluded`, um módulo que depende
-transitivamente de um módulo excluído também é excluído. Isso é calculado como ponto
-fixo sobre o grafo, então o resultado não depende da ordem em que os módulos foram
-visitados.
-
-## Integração com agentes
-
-O comando `cellar mcp` expõe as mesmas operações via MCP, como dezesseis ferramentas.
-
-```bash
-just install-claude    # Claude Code
-just install-codex     # Codex
-just install-agents    # ambos
-```
-
-Cada atalho instala o binário, registra o servidor MCP e instala uma skill que ensina
-o agente a saber quando usar cada comando. Ferramentas de leitura são marcadas como
-tal, `bundle_remove` exige confirmação explícita e `bundle_add` é a única marcada como
-acesso à rede.
-
-Todo resultado traz um caminho absoluto, então o agente pode começar com uma consulta
-ao `cellar` e continuar com a própria leitura de arquivos e o próprio grep.
-
-## Como funciona
-
-A Meta serve um zip com os chunks de qualquer versão anterior em
-`https://www.facebook.com/btarchive/<versao>/<plataforma>`. Não é preciso login. As
-URLs do bundle ao vivo deixam de funcionar assim que um novo rollout acontece, então
-esse endpoint é o que torna possível comparar releases. O `bundle add` é a única
-operação que acessa a rede.
-
-O endpoint exige uma requisição de navegador coerente. A borda da Meta compara o
-`User-Agent` com o resto da requisição, e uma requisição que se diz Chrome sem os
-cabeçalhos `Sec-Fetch-*` recebe um 400. Veja `NAVIGATION_HEADERS` em `cellar-fetch`
-para os status medidos.
-
-Algumas decisões de projeto:
-
-- **AST, não regex.** Os limites dos módulos vêm do parser. Contar chaves atravessando
-  strings, templates e literais de regex trunca módulos em silêncio, e um módulo
-  truncado aparece como um falso diff na versão seguinte.
-- **Saída determinística.** Toda lista é ordenada e todo mapa é um `BTreeMap`, então
-  reindexar um bundle produz um JSON idêntico byte a byte. Os chunks são processados
-  em paralelo e a atribuição de nomes de arquivo roda em série sobre nomes ordenados.
-- **Diagnóstico em vez de silêncio.** Tudo que é visto mas não resolvido é contado no
-  `manifest.json`. Resultados truncados dizem isso, e um diff pulado diz o porquê.
-- **O código é reimpresso.** Um módulo em uma linha de 200 KB inutiliza grep e diffs
-  por linha, então os módulos são impressos a partir da AST. A identidade em bytes é
-  guardada à parte como `rawSha256`, então a detecção de mudanças continua exata.
-- **As variantes são preservadas.** Cerca de um quarto dos módulos vem com mais de uma
-  definição distinta. Todas são gravadas, e a detecção de mudanças considera o
-  conjunto inteiro.
+Todo comando também aponta para a própria página no `--help`.
 
 ## Estrutura do projeto
 
@@ -202,8 +69,6 @@ Algumas decisões de projeto:
 
 ```bash
 just ci        # fmt-check, clippy, testes, verificação da skill
-just test
-just clippy
 ```
 
 Nenhum teste pode acessar a rede. O CI garante isso.

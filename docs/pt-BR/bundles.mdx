@@ -1,0 +1,133 @@
+---
+title: "Gerenciando versões"
+description: "Baixe, importe, inspecione e remova versões do cliente."
+icon: "package"
+keywords: ["bundle", "btarchive", "revisão", "download"]
+---
+
+Um bundle é uma versão do cliente, desempacotada em um arquivo por módulo. Todo o
+resto do cellar lê a partir daqui.
+
+## Baixar
+
+```bash
+cellar bundle add --rev latest
+cellar bundle add --rev 1030882912
+cellar bundle add --rev latest --platform instagram
+```
+
+Isso puxa algumas centenas de megabytes e leva alguns minutos. Cada versão ocupa cerca
+de 1,3 GB em disco. As versões ficam em `~/.cellar`, a menos que `CELLAR_HOME` diga
+outra coisa.
+
+O `--rev latest` descobre a versão que o WhatsApp Web está servindo agora. Para os
+outros produtos você precisa informar a revisão, porque não existe um jeito
+equivalente de descobrir e chutar daria um número confiantemente errado.
+
+As plataformas suportadas são `whatsapp`, `messenger`, `facebook` e `instagram`.
+
+<Note>
+  Versões antigas continuam disponíveis depois que o WhatsApp avança. As URLs do
+  código ao vivo param de funcionar quase imediatamente, mas a Meta mantém um arquivo
+  por versão, e é isso que torna possível comparar releases. Baixar é a única coisa
+  para a qual o cellar usa a rede.
+</Note>
+
+## Importar
+
+Se você já tem um arquivo, indexe sem baixar. Funciona tanto com um `.zip` quanto com
+um diretório já extraído.
+
+```bash
+cellar bundle import --rev 1030882912 --from ./whatsapp-1030882912
+```
+
+O número da revisão é obrigatório, porque é a identidade da versão e não dá para
+recuperar a partir dos arquivos.
+
+## Listar e inspecionar
+
+```bash
+cellar bundle list
+```
+
+```
+BUNDLE                     MODULES  INDEXED                DIR
+whatsapp-1030882912         172040  2026-08-09T23:27:13Z   /Users/voce/.cellar/bundles/whatsapp-1030882912
+whatsapp-1044822804         187892  2026-08-10T01:01:38Z   /Users/voce/.cellar/bundles/whatsapp-1044822804
+```
+
+```bash
+cellar bundle info latest
+```
+
+```
+whatsapp-1044822804
+  dir:        /Users/voce/.cellar/bundles/whatsapp-1044822804
+  modules:    187892 (655.1 MiB)
+  indexed at: 2026-08-10T01:01:38Z
+  source:     https://www.facebook.com/btarchive/1044822804/whatsapp
+  archive:    sha256:… (287.0 MiB)
+  diagnostics:
+    chunks read 63081 | skipped 5611 | parse failures 0
+    codegen fallbacks 0 | renamed files 760 | unresolved deps 7103
+    modules shipping more than one definition: 41833
+```
+
+<Warning>
+  Confira o diagnóstico depois de baixar. `parse failures 0` é como se parece uma
+  extração limpa. Um número diferente de zero significa que faltam módulos na sua
+  cópia, então um resultado de busca vazio seria culpa do cellar e não do WhatsApp.
+</Warning>
+
+## Como nomear versões
+
+Onde uma versão é esperada, tudo isso funciona:
+
+| Forma | Significado |
+| --- | --- |
+| `whatsapp-1044822804` | Exatamente essa versão |
+| `1044822804` | A mesma coisa, assumindo WhatsApp |
+| `latest` | A versão mais nova do WhatsApp que você guardou |
+| `instagram-latest` | A mais nova guardada de outro produto |
+
+## Reindexar e remover
+
+```bash
+cellar bundle reindex whatsapp-1044822804
+cellar bundle rm whatsapp-1030882912 --yes
+```
+
+O `reindex` relê uma versão que você já baixou, o que é útil depois de atualizar o
+cellar. Ele precisa dos arquivos brutos, então use `--keep-chunks` ao baixar se quiser
+essa opção depois.
+
+```bash
+cellar bundle add --rev latest --keep-chunks
+```
+
+A remoção exige `--yes`, já que apaga um diretório que levou minutos para ser
+construído.
+
+## Onde as coisas ficam
+
+```
+~/.cellar/
+  filters/<nome>.json                seus filtros
+  bundles/whatsapp-1044822804/
+    manifest.json                    identidade, integridade, contagens, diagnóstico
+    index.json                       todos os módulos, ordenados por nome
+    modules/
+      WAWebSendMsgStanza.js          um arquivo por módulo
+      WAWebSendMsgStanza~alt-….js    uma segunda definição, quando existe
+```
+
+O diretório `modules` foi feito para ser usado direto. Faça grep nele, abra no editor,
+aponte um script para ele.
+
+<Note>
+  Cerca de um quarto dos módulos vem com duas definições ligeiramente diferentes no
+  mesmo release. As duas são gravadas, a extra como `~alt-<hash>.js`. Uma delas
+  aparecer ou sumir entre releases é por si só algo digno de nota, então as
+  comparações levam todas as definições em conta.
+</Note>

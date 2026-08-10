@@ -1,0 +1,147 @@
+---
+title: "Comparando releases"
+description: "Veja o que mudou entre duas versões do WhatsApp Web, em texto, JSON, NDJSON ou Markdown."
+icon: "git-compare"
+keywords: ["diff", "json", "ndjson", "markdown", "release"]
+---
+
+Comparar duas versões é como você encontra recursos antes do anúncio.
+
+```bash
+cellar diff
+```
+
+Sem argumentos, ele compara as duas versões mais recentes que você guardou. Informe os
+nomes quando quiser um par específico.
+
+```bash
+cellar diff whatsapp-1030882912 whatsapp-1044822804 --filter protocol --no-hunks
+```
+
+```
+whatsapp-1030882912 -> whatsapp-1044822804  (filter `protocol`)
+  considered 4711 of 172040 modules (old) / 5269 of 187892 (new)
+  added 913 | removed 355 | modified 1515 | unchanged 2841
+  suppressed as noise: 41 | diffs skipped for size: 0
+```
+
+Leia o resumo antes dos detalhes. Módulos adicionados e removidos são onde recursos
+novos aparecem. Módulos modificados que ganharam dependências ou exports são onde
+recursos existentes cresceram.
+
+<Tip>
+  Comece com `--no-hunks` para ver o formato do release e rode de novo sem essa flag
+  para os poucos módulos que valem a leitura.
+</Tip>
+
+## O que conta como mudança
+
+Um módulo é comparado pela impressão digital de todas as definições que ele publica,
+não pelo texto. Só reformatação nunca aparece como mudança, e um módulo que ganhou uma
+segunda variante de build aparece, mesmo que a definição principal não tenha mudado.
+
+Mudanças em que toda linha alterada é saída de compilador são contadas como
+`noiseOnly` no resumo e ficam fora da lista. Use `--include-noise` se desconfiar que
+as regras de ruído estão escondendo algo.
+
+## Formatos de exportação
+
+<Tabs>
+  <Tab title="Texto">
+    Legível por humanos, o padrão.
+
+    ```bash
+    cellar diff --no-hunks
+    ```
+
+    ```
+    [modified] WAWebSendMsgStanza
+      + deps: WAWebAddonEncryption
+      81.4% similar, +4 -7 lines
+      new: /Users/voce/.cellar/bundles/whatsapp-1044822804/modules/WAWebSendMsgStanza.js
+    ```
+  </Tab>
+  <Tab title="JSON">
+    Um documento só, para scripts e assistentes.
+
+    ```bash
+    cellar diff --format json | jq '.summary'
+    ```
+
+    ```json
+    {
+      "added": 913,
+      "removed": 355,
+      "modified": 1515,
+      "unchanged": 2841,
+      "noiseOnly": 41,
+      "diffsSkipped": 0,
+      "oldTotal": 172040,
+      "newTotal": 187892
+    }
+    ```
+
+    Liste só os módulos novos:
+
+    ```bash
+    cellar diff --format json | jq -r '.changes[] | select(.kind=="added") | .name'
+    ```
+  </Tab>
+  <Tab title="NDJSON">
+    Um objeto JSON por linha. A primeira linha é o resumo com a lista de mudanças
+    vazia, depois vem uma linha por mudança, então dá para processar em fluxo em vez
+    de carregar tudo na memória.
+
+    ```bash
+    cellar diff --format ndjson --no-hunks | head -2
+    ```
+
+    ```json
+    {"changes":[],"filter":"protocol","new":"whatsapp-1044822804","old":"whatsapp-1030882912","summary":{"added":913,"modified":1515,...}}
+    {"kind":"added","name":"A2UIWidgetStateContext","newFile":"modules/A2UIWidgetStateContext.js","newSha256":"953e62318175bd4cd3d4039ccc41b70e049246bd6c4d729edd2d9869575065b3"}
+    ```
+  </Tab>
+  <Tab title="Markdown">
+    Um relatório para colar em uma issue ou changelog.
+
+    ```bash
+    cellar diff --format md --limit 40 > notas-release.md
+    ```
+
+    ```markdown
+    # whatsapp-1030882912 → whatsapp-1044822804
+
+    Filter: `protocol`
+
+    | metric | count |
+    | --- | --- |
+    | Added | 913 |
+    | Removed | 355 |
+    | Modified | 1515 |
+    | Unchanged | 2841 |
+    | Noise-only (suppressed) | 41 |
+    | Diffs skipped for size | 0 |
+
+    ## added (913)
+
+    ### `A2UIWidgetStateContext`
+    ```
+  </Tab>
+</Tabs>
+
+## Opções
+
+| Flag | Significado |
+| --- | --- |
+| `--filter NOME` | Quais módulos considerar. Padrão `default`. |
+| `--no-hunks` | Lista o que mudou sem o diff linha a linha. |
+| `--include-noise` | Inclui mudanças que são só saída de compilador. |
+| `-C N` | Linhas de contexto em volta de cada mudança. Padrão `3`. |
+| `--limit N` | Limita a lista. O resumo continua com os totais reais. |
+| `--platform` | De qual produto tirar os padrões. Padrão `whatsapp`. |
+
+<Warning>
+  O filtro `default` pula arquivos `.pb` e `.graphql`, porque são gerados e comparam
+  mal como texto. Quando estiver procurando um campo protobuf novo, use
+  `--filter schemas`. Veja [filtros](/pt-BR/filters).
+</Warning>

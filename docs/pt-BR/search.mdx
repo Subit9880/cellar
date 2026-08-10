@@ -1,0 +1,137 @@
+---
+title: "Encontrando código"
+description: "Busque módulos por nome, pelo código interno ou pelo que exportam."
+icon: "magnifying-glass"
+keywords: ["busca", "grep", "módulo"]
+---
+
+Uma versão contém cerca de 187.000 módulos. A busca é como você sai de um palpite para
+um caminho de arquivo.
+
+## Buscar
+
+```bash
+cellar module search --name 'Passkey' --filter protocol
+```
+
+```
+12 module(s) matched of 12 considered
+
+WASmaxMdGetPasskeyRequestOptionsRPC   /Users/voce/.cellar/bundles/whatsapp-1044822804/modules/WASmaxMdGetPasskeyRequestOptionsRPC.js
+WASmaxMdSetPasskeyPrologueRPC         /Users/voce/.cellar/bundles/whatsapp-1044822804/modules/WASmaxMdSetPasskeyPrologueRPC.js
+…
+```
+
+Três coisas para casar, e elas se combinam:
+
+| Flag | Casa contra |
+| --- | --- |
+| `--name` | O nome do módulo |
+| `--source` | O código dentro do módulo |
+| `--exports` | Os nomes que o módulo exporta |
+
+```bash
+cellar module search --name '^WAWeb' --source 'addonType' -C 2
+cellar module search --exports 'sendStanza'
+```
+
+<Tip>
+  Combinar `--name` com `--source` é muito mais rápido que só `--source`. O padrão de
+  nome é aplicado no índice em memória, então só os arquivos que sobram são abertos.
+  É a diferença entre ler quarenta arquivos e cento e oitenta mil.
+</Tip>
+
+### grep
+
+O `cellar grep` é atalho para uma busca no código.
+
+```bash
+cellar grep 'disappearing_mode' --filter protocol -C 1
+```
+
+```
+15 module(s) matched of 4715 considered (showing 3)
+
+WASmaxInAccountSyncNotificationDisappearingModeMixin  /Users/voce/.cellar/…/WASmaxInAccountSyncNotificationDisappearingModeMixin.js
+        │ 	function e(e) {
+      3 │ 		var t = o("WASmaxParseUtils").assertTag(e, "disappearing_mode");
+        │ 		if (!t.success) return t;
+```
+
+Como os módulos desempacotados são arquivos comuns, suas próprias ferramentas também
+funcionam:
+
+```bash
+grep -rl 'disappearing_mode' ~/.cellar/bundles/whatsapp-1044822804/modules/
+```
+
+## Lendo um módulo
+
+```bash
+cellar module show WASmaxOutMdGetPasskeyRequestOptionsRequest
+```
+
+```
+WASmaxOutMdGetPasskeyRequestOptionsRequest
+  path:      /Users/voce/.cellar/bundles/whatsapp-1044822804/modules/WASmaxOutMdGetPasskeyRequestOptionsRequest.js
+  bundle:    whatsapp-1044822804
+  sha256:    c1a007c396ec856d5e84a44c174a28d51beb693e2e07cdd3f9fe508ef5c91a44
+  size:      390 B raw / 445 B stored
+  deps:      WASmaxJsx, WASmaxOutMdBaseIQGetRequestMixin, WAWap
+  dependents: WASmaxMdGetPasskeyRequestOptionsRPC
+  exports:   (none)
+
+--- source ---
+     1 │ __d("WASmaxOutMdGetPasskeyRequestOptionsRequest", [
+     …
+```
+
+Flags úteis:
+
+```bash
+cellar module show WAWebSendMsgStanza --start 40 --lines 20   # um trecho
+cellar module show WAWebSendMsgStanza --path-only              # só o caminho
+cellar module show WAWebSendMsgStanza --json                   # metadados em JSON
+```
+
+Se o nome estiver errado, o erro lista nomes parecidos em vez de só falhar.
+
+## Formatos de exportação
+
+Os dois comandos aceitam `--json`.
+
+```bash
+cellar module show WASmaxOutMdGetPasskeyRequestOptionsRequest --json
+```
+
+```json
+{
+  "bundle": "whatsapp-1044822804",
+  "module": {
+    "name": "WASmaxOutMdGetPasskeyRequestOptionsRequest",
+    "file": "modules/WASmaxOutMdGetPasskeyRequestOptionsRequest.js",
+    "deps": ["WASmaxJsx", "WASmaxOutMdBaseIQGetRequestMixin", "WAWap"],
+    "dependents": ["WASmaxMdGetPasskeyRequestOptionsRPC"],
+    "exports": [],
+    "rawSha256": "c1a007c396ec856d5e84a44c174a28d51beb693e2e07cdd3f9fe508ef5c91a44",
+    "rawLen": 390,
+    "storedLen": 445,
+    "chunk": "0cbae07f3ac0860a2f76ff42ca2026a94ff8f41c82e665a5f407cf0d2a084d92.js",
+    "form": "pretty"
+  },
+  "path": "/Users/voce/.cellar/bundles/whatsapp-1044822804/modules/WASmaxOutMdGetPasskeyRequestOptionsRequest.js"
+}
+```
+
+Encadeie:
+
+```bash
+cellar module search --name '^WAWebNewsletter' --json | jq -r '.hits[].path'
+```
+
+## Lendo os resultados com cuidado
+
+A busca informa `matched` (o total real) separado dos resultados devolvidos, e marca
+`truncated: true` quando a lista foi cortada. Uma lista curta nunca é silenciosamente
+uma lista completa. Módulos que não puderam ser lidos aparecem em `unreadable` em vez
+de sumir.

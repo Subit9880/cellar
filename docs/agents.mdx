@@ -1,0 +1,111 @@
+---
+title: "AI assistants"
+description: "Install cellar into Claude Code or Codex so you can ask questions in plain English."
+icon: "sparkles"
+keywords: ["mcp", "claude code", "codex", "skill", "agent"]
+---
+
+`cellar` speaks [MCP](https://modelcontextprotocol.io), so a coding assistant can run
+it for you. Instead of remembering flags, you ask "what changed in WhatsApp Web's
+group code this release" and the assistant picks the commands.
+
+## Install
+
+<CodeGroup>
+
+```bash Claude Code
+just install-claude
+```
+
+```bash Codex
+just install-codex
+```
+
+```bash Both
+just install-agents
+```
+
+</CodeGroup>
+
+Each recipe does three things:
+
+<Steps>
+  <Step title="Installs the binary">
+    Puts `cellar` at `~/.cargo/bin/cellar`, so the assistant does not depend on your
+    checkout staying where it is.
+  </Step>
+  <Step title="Registers the MCP server">
+    Runs `claude mcp add` or `codex mcp add` at user scope, so it is available in
+    every project rather than just this one.
+  </Step>
+  <Step title="Installs the skill">
+    Copies a skill file that tells the assistant what cellar is for, which command
+    answers which question, and how to read the results.
+  </Step>
+</Steps>
+
+Check that it connected:
+
+```bash
+claude mcp list
+```
+
+```
+cellar: /Users/you/.cargo/bin/cellar mcp - ✔ Connected
+```
+
+## What the skill adds
+
+The MCP server exposes the commands. The skill teaches judgement, which matters more
+than it sounds. Without it an assistant will happily run an unfiltered search across
+187,000 modules and drown in Facebook login screens. The skill tells it to narrow by
+name first, to pick a filter deliberately, and to reach for the dependent graph when
+asked "what uses this" instead of trying to grep for it.
+
+It also tells the assistant to read the extraction diagnostics before trusting an
+empty result, so "I found nothing" and "the download was incomplete" do not get
+reported the same way.
+
+## The tools
+
+Sixteen tools, mirroring the CLI.
+
+| Group | Tools |
+| --- | --- |
+| Versions | `bundle_list`, `bundle_info`, `bundle_add`, `bundle_import`, `bundle_reindex`, `bundle_remove` |
+| Filters | `filter_list`, `filter_get`, `filter_set`, `filter_fork`, `filter_delete`, `filter_test` |
+| Reading | `module_get`, `module_search` |
+| Analysis | `diff`, `graph` |
+
+Read-only tools are marked as such, so an assistant knows which are safe to run
+without asking. `bundle_remove` requires an explicit `confirm: true`. `bundle_add` is
+the only tool marked as reaching the network.
+
+<Tip>
+  Every result includes the absolute path of the module it refers to. That means the
+  assistant can start with a cellar query and finish with its own file reading and
+  grep, which is usually faster than another round trip through the tool.
+</Tip>
+
+## Things worth asking it
+
+Once installed, these all work as plain requests:
+
+- "What changed in WhatsApp Web between the two versions I have? Skip the noise."
+- "Find where WhatsApp Web builds the stanza for disappearing messages."
+- "What uses `WAWebSendMsgStanza`? Draw it as a diagram."
+- "Are there any new protobuf fields in the latest release?"
+- "Show me every new module related to newsletters, and read the interesting ones."
+
+## Running it manually
+
+If you want to connect cellar to something else, the server speaks JSON-RPC over
+stdio:
+
+```bash
+cellar mcp
+```
+
+A failing tool returns a normal response with `isError: true` and the message as
+content, rather than a transport error, so the model can read what went wrong and try
+something else.

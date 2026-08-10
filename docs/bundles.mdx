@@ -1,0 +1,131 @@
+---
+title: "Managing versions"
+description: "Download, import, inspect and remove versions of the client."
+icon: "package"
+keywords: ["bundle", "btarchive", "revision", "download"]
+---
+
+A bundle is one version of the client, unpacked into one file per module. Everything
+else in cellar reads from these.
+
+## Download
+
+```bash
+cellar bundle add --rev latest
+cellar bundle add --rev 1030882912
+cellar bundle add --rev latest --platform instagram
+```
+
+This pulls a few hundred megabytes and takes a few minutes. Each version uses about
+1.3 GB on disk. Versions live in `~/.cellar` unless `CELLAR_HOME` says otherwise.
+
+`--rev latest` looks up the version WhatsApp Web is currently serving. For the other
+products you have to name a revision, because there is no equivalent way to discover
+it and guessing would give you a confidently wrong number.
+
+Supported platforms are `whatsapp`, `messenger`, `facebook` and `instagram`.
+
+<Note>
+  Old versions stay available after WhatsApp rolls forward. The live code URLs stop
+  working almost immediately, but Meta keeps a per-version archive, which is what
+  makes comparing releases possible at all. Downloading is the only thing cellar uses
+  the network for.
+</Note>
+
+## Import
+
+If you already have an archive, index it without downloading. Both a `.zip` and a
+directory of already-extracted files work.
+
+```bash
+cellar bundle import --rev 1030882912 --from ./whatsapp-1030882912
+```
+
+The revision number is required, because it is the version's identity and cannot be
+recovered from the files themselves.
+
+## List and inspect
+
+```bash
+cellar bundle list
+```
+
+```
+BUNDLE                     MODULES  INDEXED                DIR
+whatsapp-1030882912         172040  2026-08-09T23:27:13Z   /Users/you/.cellar/bundles/whatsapp-1030882912
+whatsapp-1044822804         187892  2026-08-10T01:01:38Z   /Users/you/.cellar/bundles/whatsapp-1044822804
+```
+
+```bash
+cellar bundle info latest
+```
+
+```
+whatsapp-1044822804
+  dir:        /Users/you/.cellar/bundles/whatsapp-1044822804
+  modules:    187892 (655.1 MiB)
+  indexed at: 2026-08-10T01:01:38Z
+  source:     https://www.facebook.com/btarchive/1044822804/whatsapp
+  archive:    sha256:… (287.0 MiB)
+  diagnostics:
+    chunks read 63081 | skipped 5611 | parse failures 0
+    codegen fallbacks 0 | renamed files 760 | unresolved deps 7103
+    modules shipping more than one definition: 41833
+```
+
+<Warning>
+  Check the diagnostics after a download. `parse failures 0` is what a clean unpack
+  looks like. A non-zero count means modules really are missing from your copy, so an
+  empty search result would be cellar's fault rather than WhatsApp's.
+</Warning>
+
+## Naming versions
+
+Anywhere a version is expected, all of these work:
+
+| Form | Meaning |
+| --- | --- |
+| `whatsapp-1044822804` | That exact version |
+| `1044822804` | Same, assuming WhatsApp |
+| `latest` | The newest WhatsApp version you have stored |
+| `instagram-latest` | The newest stored version of another product |
+
+## Re-index and remove
+
+```bash
+cellar bundle reindex whatsapp-1044822804
+cellar bundle rm whatsapp-1030882912 --yes
+```
+
+`reindex` re-reads a version you already downloaded, which is useful after upgrading
+cellar. It needs the raw files, so add `--keep-chunks` when downloading if you want
+that option later.
+
+```bash
+cellar bundle add --rev latest --keep-chunks
+```
+
+Removal needs `--yes`, since it deletes a directory that took minutes to build.
+
+## Where things are stored
+
+```
+~/.cellar/
+  filters/<name>.json                your filters
+  bundles/whatsapp-1044822804/
+    manifest.json                    identity, integrity, counts, diagnostics
+    index.json                       every module, sorted by name
+    modules/
+      WAWebSendMsgStanza.js          one file per module
+      WAWebSendMsgStanza~alt-….js    a second definition, where one ships
+```
+
+The `modules` directory is meant to be used directly. Grep it, open it in your
+editor, point a script at it.
+
+<Note>
+  About a quarter of modules ship with two slightly different definitions in the same
+  release. Both are written out, the extra one as `~alt-<hash>.js`. One of them
+  appearing or disappearing between releases is itself worth noticing, so comparisons
+  take every definition into account.
+</Note>

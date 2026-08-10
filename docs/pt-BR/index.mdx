@@ -1,0 +1,85 @@
+---
+title: "cellar"
+description: "Leia o código-fonte do WhatsApp Web. Compare duas versões e descubra recursos antes do anúncio."
+keywords: ["whatsapp web", "engenharia reversa", "btarchive", "diff", "mcp"]
+---
+
+O WhatsApp Web chega ao seu navegador como dezenas de milhares de arquivos JavaScript
+embaralhados. Tudo que o aplicativo sabe fazer está ali, inclusive as partes que já
+foram construídas mas ainda não foram ligadas.
+
+O `cellar` baixa uma versão desse código, desempacota em um arquivo legível por
+módulo e permite buscar, comparar duas versões e ver qual módulo usa qual. Nada é
+enviado para lugar nenhum. Ele lê os mesmos arquivos que o seu navegador já baixa.
+
+<Card title="Comece configurando seu assistente de IA" icon="sparkles" href="/pt-BR/agents" horizontal>
+  O jeito mais rápido de usar o cellar é deixar seu assistente de código dirigir. Um
+  comando instala a ferramenta, conecta e ensina o que fazer.
+</Card>
+
+## Instalação
+
+Você precisa de uma toolchain estável recente do Rust.
+
+```bash
+git clone https://github.com/polymorfa/cellar
+cd cellar
+cargo install --path crates/cellar
+```
+
+Depois baixe uma versão do WhatsApp Web. Isso puxa algumas centenas de megabytes e
+leva alguns minutos. Cada versão ocupa cerca de 1,3 GB em disco.
+
+```bash
+cellar bundle add --rev latest
+```
+
+Versões antigas continuam disponíveis mesmo depois que o WhatsApp segue em frente,
+então dá para voltar e pegar um release que você perdeu para comparar.
+
+```bash
+cellar bundle add --rev 1030882912
+cellar bundle list
+```
+
+```
+BUNDLE                     MODULES  INDEXED                     DIR
+whatsapp-1030882912         172040  2026-08-09T23:27:13Z        /Users/voce/.cellar/bundles/whatsapp-1030882912
+whatsapp-1044822804         187892  2026-08-10T01:01:38Z        /Users/voce/.cellar/bundles/whatsapp-1044822804
+```
+
+## O que dá para fazer
+
+<Columns cols={2}>
+  <Card title="Usar com um assistente de IA" icon="sparkles" href="/pt-BR/agents">
+    Dezesseis ferramentas via MCP, mais uma skill que ensina quando usar cada uma.
+  </Card>
+  <Card title="Seguir um exemplo real" icon="compass" href="/pt-BR/walkthrough">
+    Quatro comandos que revelam login por passkey antes do anúncio.
+  </Card>
+  <Card title="Gerenciar versões" icon="package" href="/pt-BR/bundles">
+    Baixe, importe, inspecione e remova versões do cliente.
+  </Card>
+  <Card title="Buscar no código" icon="magnifying-glass" href="/pt-BR/search">
+    Ache módulos por nome, pelo código interno ou pelo que exportam.
+  </Card>
+  <Card title="Comparar releases" icon="git-compare">
+    <a href="/pt-BR/diff">Veja o que mudou, em JSON, NDJSON, Markdown ou texto.</a>
+  </Card>
+  <Card title="Seguir as ligações" icon="share-2">
+    <a href="/pt-BR/graph">Grafos de dependência em Mermaid, Graphviz ou JSON.</a>
+  </Card>
+</Columns>
+
+## Todo comando fala JSON
+
+Tudo que produz dados aceita `--json`, então o cellar combina com `jq`, scripts e
+assistentes. As comparações ainda oferecem NDJSON e Markdown, e os grafos oferecem
+Mermaid e Graphviz. Veja [comparar releases](/pt-BR/diff) e [grafos](/pt-BR/graph).
+
+## Aviso legal
+
+O `cellar` é uma ferramenta independente. Não é afiliada, endossada ou patrocinada
+pelo WhatsApp LLC ou pela Meta. Ele lê código de cliente servido publicamente para
+pesquisa de interoperabilidade. "WhatsApp" é marca registrada de seu respectivo dono e
+é usada aqui apenas para identificar o software que a ferramenta lê.

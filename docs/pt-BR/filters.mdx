@@ -1,0 +1,136 @@
+---
+title: "Filtros"
+description: "Reduza 187.000 módulos para os que você realmente quer."
+icon: "filter"
+keywords: ["filtro", "protocol", "schemas", "wam"]
+---
+
+Um release contém cerca de 187.000 módulos. Aproximadamente 11% deles têm alguma
+relação com o protocolo do WhatsApp. O resto são botões, ícones, analytics e código do
+Facebook e do Instagram, que dividem o mesmo bundle.
+
+Sem filtro, comparar dois releases gera dezenas de milhares de entradas. Os filtros
+são o que deixa o resultado legível.
+
+## Filtros embutidos
+
+| Filtro | O que mantém | Serve para |
+| --- | --- | --- |
+| `default` | A superfície de protocolo, cerca de 11% | Comparar releases |
+| `all` | Tudo | Checar se um filtro escondeu sua resposta |
+| `protocol` | Só módulos de protocolo confirmados | Resultados curtos e diretos |
+| `schemas` | `.pb`, `.proto` e `.graphql` | Campos de dados e queries novas |
+| `wam` | Eventos e enums de analytics | O sinal mais precoce de um recurso não lançado |
+
+```bash
+cellar filter list
+```
+
+A diferença não é sutil. Buscar `Passkey` sem filtro devolve 193 módulos, quase todos
+telas de login empresarial do Facebook. Com `--filter protocol` devolve 12, que são o
+recurso inteiro.
+
+<Warning>
+  O `default` pula de propósito arquivos `.pb` e `.graphql`. Eles são gerados, e
+  comparar o texto deles é ruído. Se você está caçando um campo protobuf novo, use
+  `--filter schemas`, senão vai concluir que nada mudou.
+</Warning>
+
+## Confira antes de confiar
+
+```bash
+cellar filter test default --bundle latest
+```
+
+```
+filter `default` on whatsapp-1044822804: keeps 18761 of 172040 modules (10.9%)
+  dropped by dependsOnExcluded: 25095
+  dropped by exclude: 58397
+  dropped by hardExclude: 69787
+
+kept, for example:
+  WAWebSendMsgStanza
+  WASmaxInIqCallReceiptResponse
+  …
+
+dropped, for example:
+  AACDestinationGuidanceCardContainer.react   {"pattern":"\\.react$","reason":"hardExclude"}
+  AAAMediaPickerVisibilityAction              {"module":"Laminar","reason":"dependsOn"}
+```
+
+Todo módulo descartado informa por que foi descartado, então um resultado
+inesperadamente vazio é explicável em vez de misterioso.
+
+## Criando o seu
+
+Filtros embutidos são somente leitura. Copie um e edite a cópia.
+
+```bash
+cellar filter fork protocol newsletters
+cellar filter show newsletters > newsletters.json
+# edite e depois:
+cellar filter set newsletters --from newsletters.json
+```
+
+Um filtro é JSON, e um documento parcial é tratado como edição, então você só envia os
+campos que quer mudar.
+
+```json
+{
+  "description": "Só a superfície de newsletters e canais",
+  "include": ["^WAWebNewsletter", "Newsletter"],
+  "defaultVerdict": "drop"
+}
+```
+
+```bash
+echo '{"include":["Newsletter"],"defaultVerdict":"drop"}' | cellar filter set meu --from -
+```
+
+Apagar um filtro que sobrepõe um embutido restaura o embutido.
+
+```bash
+cellar filter rm newsletters
+```
+
+## Como o casamento funciona
+
+Quatro listas de expressões regulares, verificadas em ordem. A primeira que casar
+vence.
+
+<Steps>
+  <Step title="hardExclude">
+    Descartado de qualquer jeito, mesmo que a lista de inclusão também case. Existe
+    para tipos de arquivo que se tratam melhor por outros meios, como schemas `.pb`.
+  </Step>
+  <Step title="include">
+    Mantido, sobrepondo a lista de exclusão. O `WAWebSendMessageAction` casa com a
+    exclusão genérica de "termina em Action", mas é exatamente o que você quer, então
+    a lista de inclusão o resgata.
+  </Step>
+  <Step title="exclude">
+    Descartado.
+  </Step>
+  <Step title="defaultVerdict">
+    O que acontece com o que nenhuma lista casou. `keep` faz uma lista de bloqueio,
+    que é o que o `default` é. `drop` faz uma lista de permissão, que é o que o
+    `protocol` é.
+  </Step>
+</Steps>
+
+Com `excludeDependentsOfExcluded`, tudo que depende de um módulo descartado também é
+descartado, seguindo a cadeia até o fim. Módulos casados por `include` ficam isentos,
+já que você pediu por eles explicitamente.
+
+Mais duas listas ajustam a comparação em vez da seleção:
+
+- `noiseDeps` lista dependências cuja entrada e saída não diz nada, então elas ficam
+  fora das mudanças de dependência relatadas.
+- `noiseCode` lista padrões de saída de compilador, então um módulo cuja mudança
+  inteira é ruído de build é contado como ruído em vez de relatado.
+
+<Note>
+  As regras do filtro `default` vêm do `wa-diff-analyzer` do ProtoCocktail,
+  construídas à mão contra bundles reais ao longo de muito tempo. Elas carregam um
+  bocado de conhecimento acumulado sobre qual nome de módulo significa o quê.
+</Note>

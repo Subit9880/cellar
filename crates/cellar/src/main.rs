@@ -19,6 +19,23 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 
 use ops::Ctx;
 
+/// Where the full documentation lives.
+///
+/// Every command's help ends with a link into this site. `--help` is where someone
+/// is already stuck, so it is the one place a pointer to the docs earns its screen
+/// space.
+const DOCS: &str = "https://cellar.mintlify.site";
+
+/// Help footer for a subcommand, deep-linked to its own page.
+///
+/// A macro rather than a function because clap's derive needs a `&'static str` it
+/// can bake in at compile time, and `concat!` only takes literals.
+macro_rules! docs_for {
+    ($page:literal) => {
+        concat!("Documentation: https://cellar.mintlify.site/", $page)
+    };
+}
+
 #[derive(Parser)]
 #[command(
     name = "cellar",
@@ -29,7 +46,8 @@ use ops::Ctx;
                   file tools work on it directly.\n\n\
                   Start with `cellar bundle add --rev latest`, then `cellar module search`, \
                   `cellar diff` and `cellar graph`. `cellar mcp` serves the same operations to \
-                  an agent over MCP."
+                  an agent over MCP.",
+    after_help = "Documentation: https://cellar.mintlify.site"
 )]
 struct Cli {
     /// Archive root. Defaults to $CELLAR_HOME, then ~/.cellar.
@@ -47,21 +65,25 @@ struct Cli {
 #[derive(Subcommand)]
 enum Command {
     /// Manage stored source bundles.
-    #[command(subcommand)]
+    #[command(subcommand, after_help = docs_for!("bundles"))]
     Bundle(BundleCmd),
     /// Manage named module filters.
-    #[command(subcommand)]
+    #[command(subcommand, after_help = docs_for!("filters"))]
     Filter(FilterCmd),
     /// Look up modules and their source.
-    #[command(subcommand)]
+    #[command(subcommand, after_help = docs_for!("search"))]
     Module(ModuleCmd),
     /// Search module sources by regex (shorthand for `module search --source`).
+    #[command(after_help = docs_for!("search"))]
     Grep(GrepArgs),
     /// Compare two bundles.
+    #[command(after_help = docs_for!("diff"))]
     Diff(DiffArgs),
     /// Show the dependency or dependent graph of one or more modules.
+    #[command(after_help = docs_for!("graph"))]
     Graph(GraphArgs),
     /// Serve these operations to an agent over MCP on stdio.
+    #[command(after_help = docs_for!("agents"))]
     Mcp,
     /// Print where the archive lives.
     Paths,
@@ -362,6 +384,7 @@ fn run() -> Result<()> {
             println!("root:    {}", ctx.store.root().display());
             println!("bundles: {}", ctx.store.bundles_dir().display());
             println!("filters: {}", ctx.store.filters_dir().display());
+            println!("docs:    {DOCS}");
             Ok(())
         }
         Command::Mcp => mcp::serve(&ctx),

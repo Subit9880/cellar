@@ -14,14 +14,46 @@
     }
   },
   "navigation": {
-    "tabs": [
+    "languages": [
       {
-        "tab": "Documentation",
-        "groups": [
+        "language": "en",
+        "default": true,
+        "tabs": [
           {
-            "group": "Get started",
-            "pages": [
-              "index"
+            "tab": "Documentation",
+            "groups": [
+              {
+                "group": "Get started",
+                "pages": ["index", "agents", "walkthrough"]
+              },
+              {
+                "group": "Commands",
+                "pages": ["bundles", "search", "diff", "graph", "filters"]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "language": "pt-BR",
+        "tabs": [
+          {
+            "tab": "Documentação",
+            "groups": [
+              {
+                "group": "Comece aqui",
+                "pages": ["pt-BR/index", "pt-BR/agents", "pt-BR/walkthrough"]
+              },
+              {
+                "group": "Comandos",
+                "pages": [
+                  "pt-BR/bundles",
+                  "pt-BR/search",
+                  "pt-BR/diff",
+                  "pt-BR/graph",
+                  "pt-BR/filters"
+                ]
+              }
             ]
           }
         ]

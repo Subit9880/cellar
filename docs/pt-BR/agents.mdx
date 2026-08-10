@@ -1,0 +1,110 @@
+---
+title: "Assistentes de IA"
+description: "Instale o cellar no Claude Code ou no Codex e pergunte em português."
+icon: "sparkles"
+keywords: ["mcp", "claude code", "codex", "skill", "agente"]
+---
+
+O `cellar` fala [MCP](https://modelcontextprotocol.io), então um assistente de código
+consegue executá-lo por você. Em vez de decorar flags, você pergunta "o que mudou no
+código de grupos do WhatsApp Web neste release" e o assistente escolhe os comandos.
+
+## Instalação
+
+<CodeGroup>
+
+```bash Claude Code
+just install-claude
+```
+
+```bash Codex
+just install-codex
+```
+
+```bash Os dois
+just install-agents
+```
+
+</CodeGroup>
+
+Cada atalho faz três coisas:
+
+<Steps>
+  <Step title="Instala o binário">
+    Coloca o `cellar` em `~/.cargo/bin/cellar`, então o assistente não depende do seu
+    clone continuar no mesmo lugar.
+  </Step>
+  <Step title="Registra o servidor MCP">
+    Roda `claude mcp add` ou `codex mcp add` no escopo do usuário, então funciona em
+    qualquer projeto e não só neste.
+  </Step>
+  <Step title="Instala a skill">
+    Copia um arquivo de skill que explica para que serve o cellar, qual comando
+    responde qual pergunta e como ler os resultados.
+  </Step>
+</Steps>
+
+Confira se conectou:
+
+```bash
+claude mcp list
+```
+
+```
+cellar: /Users/voce/.cargo/bin/cellar mcp - ✔ Connected
+```
+
+## O que a skill acrescenta
+
+O servidor MCP expõe os comandos. A skill ensina critério, e isso importa mais do que
+parece. Sem ela, um assistente roda uma busca sem filtro em 187.000 módulos e se afoga
+em telas de login do Facebook. A skill diz para restringir por nome primeiro, escolher
+um filtro de propósito e usar o grafo de dependentes quando a pergunta for "o que usa
+isso", em vez de tentar buscar por texto.
+
+Ela também manda o assistente ler o diagnóstico da extração antes de confiar em um
+resultado vazio, para que "não achei nada" e "o download veio incompleto" não sejam
+relatados do mesmo jeito.
+
+## As ferramentas
+
+Dezesseis ferramentas, espelhando a CLI.
+
+| Grupo | Ferramentas |
+| --- | --- |
+| Versões | `bundle_list`, `bundle_info`, `bundle_add`, `bundle_import`, `bundle_reindex`, `bundle_remove` |
+| Filtros | `filter_list`, `filter_get`, `filter_set`, `filter_fork`, `filter_delete`, `filter_test` |
+| Leitura | `module_get`, `module_search` |
+| Análise | `diff`, `graph` |
+
+As ferramentas de leitura são marcadas como tal, então o assistente sabe quais pode
+rodar sem perguntar. O `bundle_remove` exige um `confirm: true` explícito. O
+`bundle_add` é a única marcada como acesso à rede.
+
+<Tip>
+  Todo resultado inclui o caminho absoluto do módulo. Ou seja, o assistente pode
+  começar com uma consulta ao cellar e terminar com a própria leitura de arquivos e o
+  próprio grep, o que costuma ser mais rápido que outra ida e volta na ferramenta.
+</Tip>
+
+## Coisas que vale pedir
+
+Depois de instalado, tudo isso funciona como pedido em linguagem natural:
+
+- "O que mudou no WhatsApp Web entre as duas versões que eu tenho? Ignore o ruído."
+- "Ache onde o WhatsApp Web monta a stanza de mensagens temporárias."
+- "O que usa o `WAWebSendMsgStanza`? Desenha em diagrama."
+- "Tem campo protobuf novo no último release?"
+- "Me mostra todo módulo novo de newsletter e lê os interessantes."
+
+## Rodando na mão
+
+Se quiser conectar o cellar em outra coisa, o servidor fala JSON-RPC por stdio:
+
+```bash
+cellar mcp
+```
+
+Uma ferramenta que falha devolve uma resposta normal com `isError: true` e a mensagem
+como conteúdo, em vez de um erro de transporte, então o modelo consegue ler o que deu
+errado e tentar outra coisa.
