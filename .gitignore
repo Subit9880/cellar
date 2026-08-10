@@ -1,0 +1,25 @@
+# Build artifacts
+target/
+**/*.rs.bk
+*.pdb
+
+# A local archive, if someone points CELLAR_HOME at the checkout. Bundles run to
+# gigabytes and must never be committed.
+.cellar/
+bundles/
+
+# Profiling
+*.profraw
+*.profdata
+flamegraph.svg
+perf.data*
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

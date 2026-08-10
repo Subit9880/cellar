@@ -1,0 +1,27 @@
+[package]
+name = "cellar-index"
+description = "oxc-based indexer that turns a Meta source-bundle archive into a cellar module index."
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords = ["whatsapp", "javascript", "ast", "oxc", "indexing"]
+categories = ["development-tools", "parser-implementations"]
+
+[lib]
+doctest = false
+
+[dependencies]
+anyhow = { version = "1.0", default-features = false, features = ["std"] }
+cellar-core = { workspace = true }
+hex = { version = "0.4", default-features = false, features = ["std"] }
+oxc_allocator = { workspace = true }
+oxc_ast = { workspace = true }
+oxc_ast_visit = { workspace = true }
+oxc_codegen = { workspace = true }
+oxc_parser = { workspace = true }
+oxc_span = { workspace = true }
+rayon = "1.12"
+sha2 = { version = "0.11", default-features = false }

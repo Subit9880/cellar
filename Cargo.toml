@@ -1,0 +1,65 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/cellar",
+    "crates/cellar-core",
+    "crates/cellar-fetch",
+    "crates/cellar-index",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+# Inherited from oxc, which declares 1.95; this crate's own source only needs
+# let-chains (stable since 1.88). Treat this as oxc's claim rather than a
+# measured one — oxc_data_structures uses `hint::cold_path`, which an early
+# 1.95 nightly rejects — which is exactly why CI runs a job pinned to 1.95
+# stable. If that job fails, raise this rather than dropping it.
+#
+# Nothing here needs nightly, and there is deliberately no rust-toolchain.toml,
+# so the repo builds with whatever recent stable toolchain you already have.
+rust-version = "1.95"
+authors = ["Rajeh Taher <rajeh@reforward.dev>"]
+license = "MIT"
+repository = "https://github.com/polymorfa/cellar"
+homepage = "https://github.com/polymorfa/cellar"
+keywords = ["whatsapp", "reverse-engineering", "javascript", "diff", "mcp"]
+categories = ["development-tools", "command-line-utilities"]
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+strip = true
+debug = false
+incremental = false
+
+# Release-grade codegen with debug symbols retained, for profiling the indexer.
+[profile.profiling]
+inherits = "release"
+lto = "thin"
+debug = 1
+strip = false
+
+[workspace.dependencies]
+# oxc gives the bundle indexer a real JS AST instead of brace-counting regexes:
+# module boundaries, dependency arrays and export shapes come from the parser, so a
+# minifier change reshuffling whitespace can't silently truncate a module slice.
+# Pinned as one version set — oxc's crates are released in lockstep and mixing
+# minors across oxc_ast / oxc_parser / oxc_codegen does not compile.
+oxc_allocator = "0.143"
+oxc_ast = "0.143"
+oxc_ast_visit = "0.143"
+oxc_codegen = "0.143"
+oxc_parser = "0.143"
+oxc_span = "0.143"
+
+cellar-core = { path = "crates/cellar-core", version = "0.1.0" }
+cellar-fetch = { path = "crates/cellar-fetch", version = "0.1.0" }
+cellar-index = { path = "crates/cellar-index", version = "0.1.0" }
+
+regex = { version = "1.13", default-features = false, features = ["std", "perf", "unicode-case", "unicode-perl"] }
+# No `preserve_order`: every emitted map is a BTreeMap and every list is sorted, so
+# key order is already deterministic without pulling in indexmap.
+serde_json = { version = "1.0", default-features = false, features = ["std"] }
+similar = { version = "3.1", default-features = false, features = ["text"] }
