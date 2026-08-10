@@ -28,16 +28,31 @@ funcionam diretamente.
 ## Requisitos
 
 - Uma toolchain estável recente do Rust (1.95 ou superior).
+- O [`just`](https://github.com/casey/just), que roda os atalhos de instalação e CI.
 - Cerca de 1,3 GB de disco por versão indexada.
-- O [`just`](https://github.com/casey/just) é opcional, para os atalhos.
 
 ## Instalação
+
+Instale o `just` primeiro:
+
+```bash
+brew install just        # macOS
+cargo install just       # em qualquer lugar que tenha Rust
+```
+
+Outras opções, incluindo Debian, Fedora, Arch, Nix, Scoop e um binário pronto, estão
+no [guia de instalação do `just`](https://github.com/casey/just#installation).
+
+Depois compile o cellar:
 
 ```bash
 git clone https://github.com/polymorfa/cellar
 cd cellar
-cargo install --path crates/cellar
+just install
 ```
+
+Isso coloca o `cellar` em `~/.cargo/bin/cellar`. Confira se `~/.cargo/bin` está no seu
+`PATH`.
 
 ## Documentação
 

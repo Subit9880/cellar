@@ -19,13 +19,45 @@ enviado para lugar nenhum. Ele lê os mesmos arquivos que o seu navegador já ba
 
 ## Instalação
 
-Você precisa de uma toolchain estável recente do Rust.
+Você precisa de uma toolchain estável recente do Rust e do
+[`just`](https://github.com/casey/just), que roda os atalhos de instalação do cellar.
 
-```bash
-git clone https://github.com/polymorfa/cellar
-cd cellar
-cargo install --path crates/cellar
-```
+<Steps>
+  <Step title="Instale o just">
+    <CodeGroup>
+
+    ```bash macOS
+    brew install just
+    ```
+
+    ```bash Qualquer sistema com Rust
+    cargo install just
+    ```
+
+    ```bash Debian / Ubuntu
+    apt install just
+    ```
+
+    ```bash Arch
+    pacman -S just
+    ```
+
+    </CodeGroup>
+
+    Mais opções, incluindo Fedora, Nix, Scoop e um binário pronto, estão no
+    [guia de instalação do `just`](https://github.com/casey/just#installation).
+  </Step>
+  <Step title="Compile o cellar">
+    ```bash
+    git clone https://github.com/polymorfa/cellar
+    cd cellar
+    just install
+    ```
+
+    Isso coloca o `cellar` em `~/.cargo/bin/cellar`. Confira se `~/.cargo/bin` está no
+    seu `PATH`.
+  </Step>
+</Steps>
 
 Depois baixe uma versão do WhatsApp Web. Isso puxa algumas centenas de megabytes e
 leva alguns minutos. Cada versão ocupa cerca de 1,3 GB em disco.

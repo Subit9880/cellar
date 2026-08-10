@@ -26,16 +26,31 @@ that `grep -r`, your editor, and your coding agent all work on directly.
 ## Requirements
 
 - A recent stable Rust toolchain (1.95 or newer).
+- [`just`](https://github.com/casey/just), which runs the install and CI recipes.
 - Around 1.3 GB of disk per indexed revision.
-- [`just`](https://github.com/casey/just) is optional, for the helper recipes.
 
 ## Installation
+
+Install `just` first:
+
+```bash
+brew install just        # macOS
+cargo install just       # anywhere Rust works
+```
+
+Other options, including Debian, Fedora, Arch, Nix, Scoop and a prebuilt binary,
+are in [`just`'s install guide](https://github.com/casey/just#installation).
+
+Then build cellar:
 
 ```bash
 git clone https://github.com/polymorfa/cellar
 cd cellar
-cargo install --path crates/cellar
+just install
 ```
+
+That puts `cellar` at `~/.cargo/bin/cellar`. Make sure `~/.cargo/bin` is on your
+`PATH`.
 
 ## Documentation
 
