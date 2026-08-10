@@ -90,10 +90,14 @@ Nenhum teste pode acessar a rede. O CI garante isso.
 
 ## Créditos
 
-- O `wa-diff-analyzer` do [ProtoCocktail](https://github.com/purpshell), cujo conjunto
-  de filtros de módulo é portado aqui como o filtro `default`.
+- O [wa-spec](https://github.com/vinikjkkj/wa-spec), do vini, que extrai diariamente
+  os bindings de protocolo do WhatsApp Web dos mesmos bundles.
 - O [whatspec](https://github.com/oxidezap/whatspec), de João Lucas, que extrai uma IR
   de protocolo tipada dos mesmos bundles e influenciou o design daqui.
+- O `wa-diff-analyzer` do ProtoCocktail, minha tentativa anterior neste mesmo
+  problema, cujo conjunto de filtros de módulo é portado aqui como o filtro `default`.
+- O [WARDEN](https://warden-re.io), meu próprio projeto de engenharia reversa, que
+  inspirou este aqui.
 - O [meta-code-verify](https://github.com/facebookincubator/meta-code-verify), a
   extensão de integridade de código da própria Meta, que documenta o endpoint
   `btarchive`.

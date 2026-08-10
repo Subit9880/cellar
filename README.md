@@ -88,10 +88,14 @@ No test may reach the network. CI enforces this.
 
 ## Credits
 
-- [ProtoCocktail](https://github.com/purpshell)'s `wa-diff-analyzer`, whose module
-  filter ruleset is ported here as the `default` filter.
+- [wa-spec](https://github.com/vinikjkkj/wa-spec) by vini, which extracts WhatsApp Web
+  protocol bindings from the same bundles daily.
 - [whatspec](https://github.com/oxidezap/whatspec) by João Lucas, which extracts a
   typed protocol IR from the same bundles and shaped the design here.
+- ProtoCocktail's `wa-diff-analyzer`, my earlier attempt at this problem, whose module
+  filter ruleset is ported here as the `default` filter.
+- [WARDEN](https://warden-re.io), my own reverse-engineering project, which inspired
+  this one.
 - [meta-code-verify](https://github.com/facebookincubator/meta-code-verify), Meta's
   own source-integrity extension, which documents the `btarchive` endpoint.
 
