@@ -1,0 +1,272 @@
+---
+title: "cellar"
+description: "Read WhatsApp Web's source code. Compare two releases to find features before they are announced."
+keywords: ["whatsapp web", "reverse engineering", "btarchive", "bundle diff", "mcp", "protocol"]
+---
+
+WhatsApp Web is shipped to your browser as tens of thousands of scrambled JavaScript
+files. Everything the app can do is in there, including the parts that are built but
+not switched on yet.
+
+`cellar` downloads a version of that code, unpacks it into one readable file per
+module, and lets you search it, compare two versions, and see which module uses
+which. Nothing is sent anywhere. It reads the same files your browser already
+downloads.
+
+## What you can do with it
+
+<Columns cols={3}>
+  <Card title="Find a feature" icon="magnifying-glass">
+    Search every module by name, by the code inside it, or by what it exports.
+  </Card>
+  <Card title="See what changed" icon="git-compare">
+    Compare two releases and get a list of what was added, removed and rewritten.
+  </Card>
+  <Card title="Follow the wiring" icon="share-2">
+    See which modules use a given module. Plain text search cannot answer this.
+  </Card>
+</Columns>
+
+## Install
+
+<Steps>
+  <Step title="Build it">
+    You need a recent stable Rust toolchain.
+
+    ```bash
+    git clone https://github.com/polymorfa/cellar
+    cd cellar
+    cargo install --path crates/cellar
+    ```
+  </Step>
+  <Step title="Download a version">
+    This pulls a few hundred megabytes and takes a few minutes. Each version uses
+    about 1.3 GB on disk.
+
+    ```bash
+    cellar bundle add --rev latest
+    ```
+
+    Versions are stored in `~/.cellar`. Set `CELLAR_HOME` to put them somewhere else.
+  </Step>
+  <Step title="Add an older one to compare against">
+    Old versions stay available even after WhatsApp moves on, so you can go back and
+    pick up a release you missed.
+
+    ```bash
+    cellar bundle add --rev 1030882912
+    cellar bundle list
+    ```
+  </Step>
+</Steps>
+
+## A real example
+
+Here is an actual walkthrough against two real WhatsApp Web releases. The feature we
+end up finding is passkey sign-in, which had not been announced when this code
+shipped.
+
+### Step 1: compare the two releases
+
+```bash
+cellar diff whatsapp-1030882912 whatsapp-1044822804 --filter protocol --no-hunks
+```
+
+```
+whatsapp-1030882912 -> whatsapp-1044822804  (filter `protocol`)
+  considered 4711 of 172040 modules (old) / 5269 of 187892 (new)
+  added 913 | removed 355 | modified 1515 | unchanged 2841
+  suppressed as noise: 41 | diffs skipped for size: 0
+```
+
+The bundle has 187,892 modules. Most of them are buttons, icons and code belonging to
+Facebook and Instagram, which share the same bundle. The `protocol` filter throws
+those away and leaves 5,269 modules that actually talk to WhatsApp's servers.
+
+Scanning the added modules, a group of new names mentions passkeys.
+
+### Step 2: narrow it down
+
+Search the new version for anything with "Passkey" in the name:
+
+```bash
+cellar module search --name 'Passkey' --bundle whatsapp-1044822804
+```
+
+```
+193 module(s) matched of 193 considered
+```
+
+193 results is too many, because most of them are Facebook's business login screens.
+Add the filter and the picture gets clear:
+
+```bash
+cellar module search --name 'Passkey' --filter protocol --bundle whatsapp-1044822804
+```
+
+```
+12 module(s) matched of 12 considered
+
+WASmaxInMdGetPasskeyRequestOptionsResponseError    …/modules/WASmaxInMdGetPasskeyRequestOptionsResponseError.js
+WASmaxInMdGetPasskeyRequestOptionsResponseSuccess  …/modules/WASmaxInMdGetPasskeyRequestOptionsResponseSuccess.js
+WASmaxInMdPasskeyPrologueRequestNotificationRequest …/modules/WASmaxInMdPasskeyPrologueRequestNotificationRequest.js
+WASmaxInMdPasskeyRequestOptionsMixin               …/modules/WASmaxInMdPasskeyRequestOptionsMixin.js
+WASmaxInMdSetPasskeyPrologueResponseSuccess        …/modules/WASmaxInMdSetPasskeyPrologueResponseSuccess.js
+WASmaxMdGetPasskeyRequestOptionsRPC                …/modules/WASmaxMdGetPasskeyRequestOptionsRPC.js
+WASmaxMdPasskeyPrologueRequestNotificationRPC      …/modules/WASmaxMdPasskeyPrologueRequestNotificationRPC.js
+WASmaxMdSetPasskeyPrologueRPC                      …/modules/WASmaxMdSetPasskeyPrologueRPC.js
+…
+```
+
+Twelve modules, and the names describe a request, a success response, an error
+response and a notification. That is a complete feature.
+
+### Step 3: read the code
+
+```bash
+cellar module show WASmaxOutMdGetPasskeyRequestOptionsRequest --bundle whatsapp-1044822804
+```
+
+```javascript
+__d("WASmaxOutMdGetPasskeyRequestOptionsRequest", [
+	"WASmaxJsx",
+	"WASmaxOutMdBaseIQGetRequestMixin",
+	"WAWap"
+], (function(t, n, r, o, a, i, l) {
+	function e() {
+		var e = o("WASmaxOutMdBaseIQGetRequestMixin").mergeBaseIQGetRequestMixin(o("WASmaxJsx").smax("iq", {
+			to: o("WAWap").S_WHATSAPP_NET,
+			xmlns: "md"
+		}, o("WASmaxJsx").smax("passkey_request_options", null)));
+		return e;
+	}
+	l.makeGetPasskeyRequestOptionsRequest = e;
+}), 98);
+```
+
+That is the exact message the client sends to WhatsApp:
+
+```xml
+<iq to="s.whatsapp.net" type="get" xmlns="md">
+  <passkey_request_options/>
+</iq>
+```
+
+<Note>
+  WhatsApp ships this code on one very long line. `cellar` reformats it while
+  unpacking, which is why it is readable here. The original bytes are still
+  fingerprinted, so comparisons between versions stay exact.
+</Note>
+
+### Step 4: find out what uses it
+
+The code is scrambled, so one module never mentions another by name. Searching for
+usages will not work. `cellar` records the connections while unpacking, so you can
+just ask:
+
+```bash
+cellar graph WASmaxMdGetPasskeyRequestOptionsRPC --direction dependents --depth 2
+```
+
+```
+4 nodes, 3 edges  (bundle whatsapp-1044822804, direction dependents)
+
+DEPTH  STATE    DEPS  USED  MODULE
+0      ok          7     1  WASmaxMdGetPasskeyRequestOptionsRPC
+2      ok         12     4  WAWebShortcakeLinkingApi
+1      ok          6     2  WAWebShortcakeLinkingIq
+2      ok          4     2  WAWebShortcakeLinkingRequestOptionsCache
+```
+
+The passkey request is used by the device linking code. So this is not a login
+screen. It is passkeys replacing the QR code when you link a new device.
+
+### What that took
+
+Four commands, about a minute, and no browser. We went from "something changed in
+this release" to the exact message format and the feature it belongs to.
+
+## Filters
+
+A release contains around 187,000 modules, and only about 11% of them have anything
+to do with WhatsApp's protocol. Filters are what keep results readable.
+
+| Filter | What it keeps | Good for |
+| --- | --- | --- |
+| `default` | The protocol surface | Comparing releases |
+| `all` | Everything | Checking whether a filter hid your answer |
+| `protocol` | Only confirmed protocol modules | Short, high-signal results |
+| `schemas` | `.pb`, `.proto` and `.graphql` files | New data fields and server queries |
+| `wam` | Analytics events | The earliest sign of an unreleased feature |
+
+Check what a filter actually does before you trust it:
+
+```bash
+cellar filter test protocol --bundle latest
+```
+
+You can copy a built-in filter and edit it:
+
+```bash
+cellar filter fork protocol mine
+cellar filter set mine --from ./mine.json
+```
+
+<Warning>
+  The `default` filter skips `.pb` and `.graphql` files, because they are generated
+  and compare badly as text. If you are looking for a new data field, use
+  `--filter schemas` instead, or you will conclude that nothing changed.
+</Warning>
+
+## Use it from your AI assistant
+
+`cellar mcp` exposes the same commands to a coding assistant, so you can ask
+questions in plain English instead of remembering flags.
+
+<CodeGroup>
+
+```bash Claude Code
+just install-claude
+```
+
+```bash Codex
+just install-codex
+```
+
+</CodeGroup>
+
+That installs the program, connects it to the assistant, and adds instructions that
+teach it when to use each command. Every answer includes the file path, so the
+assistant can open and read the code itself.
+
+## Reading results carefully
+
+<AccordionGroup>
+  <Accordion title="A short list is never silently a complete one">
+    Cut-off results say `truncated: true` and still report the real total. A
+    comparison that was skipped says why it was skipped.
+  </Accordion>
+  <Accordion title="Check the diagnostics after downloading">
+    `cellar bundle info latest` reports how the unpacking went. If it says some
+    files failed to parse, then modules really are missing from your copy, and an
+    empty search result might be the tool's fault rather than WhatsApp's.
+  </Accordion>
+  <Accordion title="Some modules ship twice">
+    About a quarter of modules exist in two slightly different versions in the same
+    release. Both are saved, the second as `<name>~alt-<hash>.js`. One of them
+    appearing or disappearing between releases is itself worth noticing.
+  </Accordion>
+  <Accordion title="Old versions are only available from Meta's archive">
+    WhatsApp serves only the current version, and those links stop working once a new
+    one rolls out. Older versions come from Meta's own archive endpoint, which is
+    what makes comparing releases possible. Downloading is the only thing `cellar`
+    uses the network for.
+  </Accordion>
+</AccordionGroup>
+
+## Legal
+
+`cellar` is an independent tool. It is not affiliated with, endorsed by, or sponsored
+by WhatsApp LLC or Meta. It reads publicly served client code for interoperability
+research. "WhatsApp" is a trademark of its respective owner and is used here only to
+identify the software this tool reads.

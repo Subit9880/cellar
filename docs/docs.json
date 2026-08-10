@@ -1,0 +1,36 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "name": "cellar",
+  "theme": "mint",
+  "colors": {
+    "primary": "#a8542a",
+    "light": "#e8b48a",
+    "dark": "#b5651d"
+  },
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/polymorfa/cellar"
+    }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get started",
+            "pages": [
+              "index"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/polymorfa/cellar"
+    }
+  }
+}

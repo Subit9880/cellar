@@ -1,200 +1,249 @@
 # cellar
 
-**An archive of Meta's shipped client source that you — or an agent — can look
-things up in.** Download a client revision, diff it against another, read any
-module, and trace what depends on what.
+[![Ler em Português](https://img.shields.io/badge/Ler%20em-Portugu%C3%AAs-009c3b?style=for-the-badge)](README_BR.md)
 
-WhatsApp Web (and Messenger, Facebook, Instagram) ship as a few tens of thousands
-of minified JavaScript chunks, each holding many
-`__d("ModuleName", [deps], factory, id)` definitions. `cellar` downloads a
-revision, parses it with the [`oxc`](https://oxc.rs) AST, and writes **one file per
-module, named after the module** — so the archive is something `grep -r` and an
-ordinary text editor work on directly.
+> Este documento também está disponível em [português](README_BR.md).
 
-```
-$CELLAR_HOME/                        (default: ~/.cellar)
-  filters/<name>.json                user filters; built-ins are compiled in
-  bundles/whatsapp-1030882912/
-    manifest.json                    identity, integrity, counts, diagnostics
-    index.json                       every module, sorted by name
-    modules/
-      WAWebSendMsgStanza.js          one file per module
-      WAWebSendMsgStanza~alt-….js    a second definition, where one ships
-```
+A searchable archive of Meta's shipped client source. Download a WhatsApp Web
+revision, diff it against another, read any module, and trace what depends on what.
 
-## Quick start
+WhatsApp Web ships as tens of thousands of minified JavaScript chunks. Each chunk
+packs many `__d("ModuleName", [deps], factory, id)` definitions onto a single line.
+`cellar` downloads a client revision, parses it with the [oxc](https://oxc.rs) AST,
+and writes one file per module, named after the module. The result is a directory
+that `grep -r`, your editor, and your coding agent all work on directly.
+
+## Features
+
+- Download and manage source bundles for any past client revision.
+- Diff two revisions through a named filter, in JSON, NDJSON, Markdown or text.
+- Search modules by name, source text, or exported symbol.
+- Print any module's source, dependencies, dependents and exports.
+- Build dependency and dependent graphs, as JSON, DOT or Mermaid.
+- Serve all of the above to a coding agent over MCP.
+- Supports `whatsapp`, `messenger`, `facebook` and `instagram`.
+
+## Requirements
+
+- A recent stable Rust toolchain (1.95 or newer).
+- Around 1.3 GB of disk per indexed revision.
+- [`just`](https://github.com/casey/just) is optional, for the helper recipes.
+
+## Installation
 
 ```bash
-cargo install --path crates/cellar     # or: just install
-
-# Fetch and index the current WhatsApp Web revision (minutes; gigabytes).
-cellar bundle add --rev latest
-
-# …or index an archive you already have (a .zip, or a directory of chunks).
-cellar bundle import --rev 1030882912 --from ./whatsapp-1030882912
-
-# What changed between the two newest revisions?
-cellar diff --no-hunks
-
-# Where is this implemented?
-cellar module search --name '^WAWeb' --source 'addonType' -C 2
-
-# What uses this?  (grep cannot answer this — see below.)
-cellar graph WAWebSendMsgStanza --direction dependents --depth 2
-
-# Serve all of the above to an agent over MCP.
-cellar mcp
+git clone https://github.com/polymorfa/cellar
+cd cellar
+cargo install --path crates/cellar
 ```
 
-Every command that produces data takes `--json`; `diff` also does
-`--format ndjson|md`, and `graph` does `--format dot|mermaid`.
+## Usage
 
-### What it looks like
+### Managing bundles
 
-Diffing two consecutive WhatsApp Web revisions through the `protocol` filter —
-4,715 modules of the 172,198 in the bundle — takes about a second and turns up
-things like a new `WAWebSettingsSync*` module family carrying
-`SyncActionValue$SettingsSyncAction$SettingKey` with 23 keys (`appTheme`,
-`wallpaperId`, notification tones, autodownload flags), wired into app-state sync
-via `WAWebCollectionHandlerActions`. That is cross-device settings sync, visible
-in the client before it is announced.
+Index the current WhatsApp Web revision. This downloads a few hundred megabytes and
+takes a few minutes.
 
-## Why not just grep the bundle?
+```bash
+cellar bundle add --rev latest
+cellar bundle add --rev 1030882912
+```
 
-You can, and for some questions you should — that is what the `modules/`
-directory is for. Two questions it cannot answer:
+Bundles are stored in `~/.cellar` by default. Set `CELLAR_HOME` to change that.
 
-- **"What uses this module?"** Minified call sites reference dependencies
-  positionally (`d[3]`), never by name. The only record of the reverse edge is the
-  dependency arrays, which `cellar` inverts at index time.
-- **"What changed since last release?"** Meta serves only the current bundle; the
-  URLs 404 as soon as a rollout moves on. Historical revisions come from
-  `btarchive` (see below), which is what makes release-to-release diffing possible
-  at all.
+```bash
+cellar bundle list
+cellar bundle info latest
+cellar bundle rm whatsapp-1030882912 --yes
+```
 
-## Where the bundles come from
+You can also index an archive you already have, either a `.zip` or a directory of
+extracted chunks.
 
-`https://www.facebook.com/btarchive/<revision>/<platform>` serves a zip of the
-chunks for any past revision, for `whatsapp`, `messenger`, `facebook` and
-`instagram`. No login required.
+```bash
+cellar bundle import --rev 1030882912 --from ./whatsapp-1030882912
+```
 
-It does require looking like a browser, in a specific way: Meta's edge
-cross-checks the `User-Agent` against the rest of the request, and a request
-claiming Chrome while omitting `Sec-Fetch-*` is answered `400`. `cellar` sends the
-full navigation header set — see `NAVIGATION_HEADERS` in `cellar-fetch`, which
-documents the measured status codes.
+`cellar bundle info` prints extraction diagnostics. Check them before trusting a
+surprising result. A non-zero `chunkParseFailures` means modules are missing from
+the index rather than missing from WhatsApp.
 
-`bundle add` is the only operation that touches the network.
+### Searching modules
+
+```bash
+cellar module search --name '^WAWeb' --source 'addonType' -C 2
+cellar grep 'disappearing_mode' --filter protocol
+cellar module show WAWebSendMsgStanza
+cellar module show WAWebSendMsgStanza --path-only
+```
+
+Narrow with `--name` whenever possible. The name pattern is applied to the in-memory
+index first, so only the surviving files are opened.
+
+### Diffing revisions
+
+```bash
+cellar diff --no-hunks
+cellar diff whatsapp-1030882912 whatsapp-1044822804 --format json
+```
+
+With no arguments, `diff` compares the two newest stored revisions. Start with
+`--no-hunks` for an overview, then re-run for the modules worth reading.
+
+Changes whose every altered line is transpiler output are counted as `noiseOnly` in
+the summary and left out of the change list. Pass `--include-noise` to see them.
+
+### Dependency graphs
+
+```bash
+cellar graph WAWebSendMsgStanza --direction dependents --depth 2
+cellar graph --match '^WAWebNewsletter' --direction deps --format mermaid
+```
+
+Minified call sites reference dependencies positionally (`d[3]`) instead of by name.
+The dependency arrays are the only record of which module uses which, and `cellar`
+inverts them at index time. Grep cannot answer this question.
 
 ## Filters
 
-A bundle holds ~170k modules; the protocol surface is about 11% of it, and the rest
-is React components, analytics, and the other Meta products sharing the bundle. A
-filter is what makes a diff readable instead of 40,000 entries long.
+A bundle holds around 170,000 modules. The protocol surface is roughly 11% of that.
+The rest is React components, analytics, and the other Meta products that share the
+bundle. Without a filter, a diff between two revisions runs to tens of thousands of
+entries.
 
-| filter | keeps | for |
+| Filter | Keeps | Use for |
 | --- | --- | --- |
-| `default` | protocol surface (~11%) | release-to-release diffs |
-| `all` | everything | checking whether the filter hid something |
-| `protocol` | positively-identified protocol modules only | tight, high-signal diffs |
-| `schemas` | `.pb` / `.proto` / `.graphql` | new protobuf fields, new persisted GraphQL |
-| `wam` | WAM analytics events and enums | early traces of unreleased features |
+| `default` | Protocol surface (~11%) | Release-to-release diffs |
+| `all` | Everything | Checking whether the filter hid your answer |
+| `protocol` | Positively identified protocol modules | Tight, high-signal diffs |
+| `schemas` | `.pb`, `.proto` and `.graphql` | New protobuf fields, new persisted queries |
+| `wam` | WAM analytics events and enums | Early traces of unreleased features |
 
-Precedence is `hardExclude`, then `include`, then `exclude`, then
-`defaultVerdict`. With `excludeDependentsOfExcluded`, a module that transitively
-depends on an excluded one is excluded too — computed as a fixpoint over the
-graph, so the result does not depend on the order modules were visited.
+The `default` filter hard-excludes `.pb` and `.graphql` modules, because they are
+generated artifacts that a text diff reports badly. Use `--filter schemas` when
+looking for a new protobuf field.
+
+Inspect a filter before trusting it, then fork and edit it if needed.
 
 ```bash
-cellar filter test default --bundle latest    # what does it actually keep?
-cellar filter fork default mine               # built-ins are read-only
-cellar filter set mine --from ./mine.json     # partial documents are edits
+cellar filter list
+cellar filter test default --bundle latest
+cellar filter fork default mine
+cellar filter set mine --from ./mine.json
 ```
 
-## Design
-
-- **AST, not regex.** Module boundaries come from the parser. Brace-counting
-  through string, template and regex literals silently truncates modules, and a
-  truncated module reads as a spurious diff on the next revision. Exports resolve
-  through the factory's actual parameter binding, so a minified
-  `q.sendStanza = …` is found where a `e\.(\w+)=` pattern finds nothing.
-- **Deterministic.** Every list is sorted and every map is a `BTreeMap`, so
-  re-indexing the same bundle produces byte-identical JSON. Chunks are parsed in
-  parallel, but filename assignment — the only order-sensitive step — runs
-  serially over sorted names.
-- **Diagnostics, not silence.** Anything seen but not resolved is counted in
-  `manifest.json` rather than dropped, so "this bundle has no such module" and "we
-  failed to extract it" never look alike. Truncated results say so; a skipped diff
-  says why.
-- **Sources are re-printed.** The bundle ships each module on one enormous line,
-  which makes a greppable directory useless and a line diff meaningless. Modules
-  are printed from the AST instead. Byte-level identity is preserved separately as
-  `rawSha256`, so change detection stays exact.
-- **Variants are kept.** About a quarter of modules ship with more than one
-  distinct definition (a build compiled against `react-compiler-runtime` alongside
-  one that is not, for example). All are written out, and change detection hashes
-  the whole set — otherwise a build variant appearing between revisions would read
-  as no change, and a shift in which one was picked would read as a change that
-  never happened.
+Precedence is `hardExclude`, then `include`, then `exclude`, then `defaultVerdict`.
+With `excludeDependentsOfExcluded`, a module that transitively depends on an excluded
+module is also excluded. That is computed as a fixpoint over the graph, so the result
+does not depend on the order modules were visited.
 
 ## Agent integration
 
+`cellar mcp` serves the same operations over MCP as sixteen tools.
+
 ```bash
-just install-agents     # binary + MCP registration + skill, Claude Code and Codex
+just install-claude    # Claude Code
+just install-codex     # Codex
+just install-agents    # both
 ```
 
-Sixteen MCP tools mirroring the CLI, tools-only JSON-RPC over stdio. Read-only
-tools are annotated as such, `bundle_remove` requires explicit confirmation, and
-`bundle_add` is the only one marked `openWorldHint`. Tool failures come back as
-`isError: true` with the message, so the model can read and adjust rather than
-having the client swallow a transport error.
+Each recipe installs the binary, registers the MCP server, and installs a skill that
+tells the agent when to use it. Read-only tools are annotated as such, `bundle_remove`
+requires explicit confirmation, and `bundle_add` is the only tool marked as reaching
+the network.
 
-Every result carries the module's absolute path, because the expected next step is
-for the agent to take over with its own file-reading and grep tools.
+Every result carries an absolute path, so an agent can start with a `cellar` query
+and continue with its own file reading and grep.
 
-The skill lives at `.claude/skills/cellar/SKILL.md`; `.codex/skills/cellar` is a
-symlink to it, so the two agents cannot drift apart.
+## How it works
 
-## Layout
+Meta serves a zip of the chunks for any past revision at
+`https://www.facebook.com/btarchive/<revision>/<platform>`. No login is required.
+The live bundle URLs stop resolving once a rollout moves on, so this endpoint is
+what makes release-to-release diffing possible. `bundle add` is the only operation
+that touches the network.
 
-| crate | role |
+The endpoint does require a self-consistent browser request. Meta's edge checks the
+`User-Agent` against the rest of the request, and a request claiming Chrome without
+`Sec-Fetch-*` headers gets a 400. See `NAVIGATION_HEADERS` in `cellar-fetch` for the
+measured status codes.
+
+Some design notes:
+
+- **AST, not regex.** Module boundaries come from the parser. Counting braces
+  through string, template and regex literals truncates modules silently, and a
+  truncated module shows up as a false diff on the next revision.
+- **Deterministic output.** Every list is sorted and every map is a `BTreeMap`, so
+  re-indexing a bundle produces byte-identical JSON. Chunks are parsed in parallel,
+  and filename assignment runs serially over sorted names.
+- **Diagnostics instead of silence.** Anything seen but unresolved is counted in
+  `manifest.json`. Truncated results say so, and a skipped diff says why.
+- **Sources are re-printed.** A module on one 200 KB line makes grep and line diffs
+  useless, so modules are printed from the AST. Byte identity is tracked separately
+  as `rawSha256`, so change detection stays exact.
+- **Variants are kept.** About a quarter of modules ship with more than one distinct
+  definition. All of them are written out, and change detection hashes the whole set.
+
+## Project layout
+
+| Crate | Role |
 | --- | --- |
-| `cellar-core` | store layout, index model, filter engine, diff, graphs. No I/O beyond the filesystem. |
-| `cellar-index` | oxc bundle parsing → module index. Native only. |
-| `cellar-fetch` | revision discovery, `btarchive` download, unpacking. The only crate that reaches the network. |
-| `cellar` | CLI and MCP server, both thin shells over one shared operations layer. |
+| `cellar-core` | Store layout, index model, filter engine, diff, graphs. No I/O beyond the filesystem. |
+| `cellar-index` | oxc bundle parsing into a module index. |
+| `cellar-fetch` | Revision discovery, download and unpacking. The only crate that reaches the network. |
+| `cellar` | CLI and MCP server, both built on one shared operations layer. |
 
-Builds on stable Rust 1.95+ (the floor is set by `oxc`). There is no
-`rust-toolchain.toml`, so it uses whatever toolchain you have.
+## Development
 
-## Prior art
+```bash
+just ci        # fmt-check, clippy, tests, skill check
+just test
+just clippy
+```
 
-- **[ProtoCocktail](https://github.com/purpshell)**'s `wa-diff-analyzer`, whose
-  module-filter ruleset — several hundred patterns accumulated empirically against
-  real bundles — is ported here as the `default` filter. That ruleset is worth more
-  than the code around it, and `cellar` reproduces its judgement calls faithfully;
-  the differences are structural, and documented in `cellar-core/src/builtin.rs`.
-- **[whatspec](https://github.com/oxidezap/whatspec)** by João Lucas, which solves
-  the adjacent problem of extracting a typed protocol IR from the same bundles. Its
-  approach — oxc over regex, deterministic output, diagnostics rather than silent
-  drops — shaped the design here. If you want a structured protocol contract rather
-  than a searchable archive, use whatspec.
-- **[meta-code-verify](https://github.com/facebookincubator/meta-code-verify)**,
-  Meta's own source-integrity extension, which is where the `btarchive` endpoint
-  and the shape of a request it accepts are documented in practice.
+No test may reach the network. CI enforces this.
 
-## Contributing
+## Credits
 
-`just ci` runs everything CI does: `fmt-check`, `clippy -D warnings`, the test
-suite, and the skill-consistency check. No test may reach the network.
+- [ProtoCocktail](https://github.com/purpshell)'s `wa-diff-analyzer`, whose module
+  filter ruleset is ported here as the `default` filter.
+- [whatspec](https://github.com/oxidezap/whatspec) by João Lucas, which extracts a
+  typed protocol IR from the same bundles and shaped the design here.
+- [meta-code-verify](https://github.com/facebookincubator/meta-code-verify), Meta's
+  own source-integrity extension, which documents the `btarchive` endpoint.
+
+## Get support
+
+If you'd like business to enterprise-level support from Rajeh, you can book a video
+chat. Book a 1 hour time slot by contacting him on Discord or pre-ordering
+[here](https://purpshell.dev/book). The earlier you pre-order the better, as his
+time slots usually fill up very quickly.
+
+If you are a business, we encourage you to contribute back to the development costs
+of the project. You can do so by booking meetings or sponsoring below. All support
+is welcome from businesses of all sizes.
+
+## Sponsor
+
+If you'd like to financially support this project, you can do so
+[here](https://purpshell.dev/sponsor).
 
 ## Disclaimer
 
-`cellar` is an independent tool and is **not affiliated with, endorsed by, or
-sponsored by WhatsApp LLC or Meta**. "WhatsApp" is a trademark of its respective
-owner and is used here only descriptively, to identify the software this tool
-reads. It reads publicly served client bundles for interoperability research.
+> [!CAUTION]
+> This project is not affiliated, associated, authorized, endorsed by, or in any way
+> officially connected with WhatsApp or any of its subsidiaries or its affiliates.
+> The official WhatsApp website can be found at whatsapp.com. "WhatsApp" as well as
+> related names, marks, emblems and images are registered trademarks of their
+> respective owners.
+>
+> `cellar` reads publicly served client bundles for interoperability research. The
+> maintainers do not condone the use of this project in practices that violate the
+> Terms of Service of WhatsApp, and call upon the personal responsibility of its
+> users to use it fairly.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+Copyright (c) 2026 Rajeh Taher
+
+Licensed under the MIT License. See [LICENSE](LICENSE) for the full text.
